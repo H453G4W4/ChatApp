@@ -29,6 +29,7 @@ import macroSlice from '@/store/macro/macroSlice';
 import searchSlice from '@/store/search/searchSlice';
 import copilotSlice from '@/store/copilot/copilotSlice';
 import newConversationSlice from '@/store/new-conversation/newConversationSlice';
+import connectionSlice from '@/store/connection/connectionSlice';
 
 export const appReducer = combineReducers({
   auth: authSlice,
@@ -59,4 +60,5 @@ export const appReducer = combineReducers({
   search: searchSlice,
   copilot: copilotSlice,
   newConversation: newConversationSlice,
+  connection: connectionSlice,
 });

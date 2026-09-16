@@ -2,7 +2,9 @@ import { ConfigContext, ExpoConfig } from 'expo/config';
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   return {
-    name: 'Chatwoot',
+    // Visible app name / Android label. The package id stays com.chatwoot.app -
+    // see the Phase 4 report; renaming it is an install-breaking migration.
+    name: process.env.EXPO_PUBLIC_APP_NAME || 'ChatApp',
     slug: process.env.EXPO_PUBLIC_APP_SLUG || 'chatwoot-mobile',
     version: '4.9.3',
     orientation: 'portrait',
@@ -69,7 +71,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         storybookEnabled: process.env.EXPO_STORYBOOK_ENABLED,
       },
     },
-    owner: 'chatwoot',
+    // EAS account that owns the build. Override for a ChatApp-owned EAS project.
+    owner: process.env.EXPO_PUBLIC_EAS_OWNER || 'chatwoot',
     plugins: [
       'expo-font',
       'expo-image',

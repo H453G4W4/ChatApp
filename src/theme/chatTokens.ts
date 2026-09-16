@@ -92,6 +92,12 @@ export const chatTokens = {
     bannerBody: 'text-md font-inter-420-20 leading-[19px] text-gray-800',
   },
 
+  /** Passive connectivity hint under the queue header. */
+  connection: {
+    bar: 'flex-row items-center justify-center gap-2 py-1.5 bg-amber-100',
+    text: 'text-xs font-inter-420-20 leading-4 text-amber-900',
+  },
+
   /** Chat screen top bar. */
   header: {
     bar: 'flex-row items-center gap-2 px-2 py-1.5',

@@ -29,6 +29,20 @@ const isForPreviousAccount = (url?: string): boolean => {
   );
 };
 
+/**
+ * True when an account-scoped response outlived the session that asked for it.
+ *
+ * Logging out clears the user but cannot recall requests already on the wire.
+ * Without this, a reply from the previous installation could land after logout
+ * and seed the store for whoever logs in next. Only account-scoped URLs are
+ * checked, so sign-in and profile calls - which legitimately run with no user
+ * - are unaffected.
+ */
+const isForEndedSession = (url?: string): boolean => {
+  const isAccountScoped = /accounts\/\d+\//.test(url ?? '');
+  return isAccountScoped && !getStore().getState().auth.user;
+};
+
 const CLIENT_NAME = 'Chatwoot Mobile';
 const CLIENT_VERSION = Constants.expoConfig?.version ?? 'unknown';
 
@@ -107,6 +121,9 @@ class APIService {
             new axios.CanceledError('Ignoring response for a previous account'),
           );
         }
+        if (isForEndedSession(response.config.url)) {
+          return Promise.reject(new axios.CanceledError('Ignoring response for an ended session'));
+        }
         return response;
       },
       async (error: AxiosError) => {
@@ -117,6 +134,9 @@ class APIService {
         // logging out or a stale error toast for the account just switched away from).
         if (isForPreviousAccount(error.config?.url)) {
           return Promise.reject(new axios.CanceledError('Ignoring error for a previous account'));
+        }
+        if (isForEndedSession(error.config?.url)) {
+          return Promise.reject(new axios.CanceledError('Ignoring error for an ended session'));
         }
         if (error.response?.status === 401) {
           const store = getStore();

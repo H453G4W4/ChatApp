@@ -13,6 +13,7 @@ import {
 import { appReducer } from '@/store/reducers';
 import { setStore } from './storeAccessor';
 import { contactListenerMiddleware } from './contact/contactListener';
+import { sessionListenerMiddleware } from './auth/sessionListener';
 import { repairPersistedWebSocketUrl } from './settings/settingsUtils';
 
 // Disable this in testing environment
@@ -39,7 +40,12 @@ const persistConfig = {
   },
 };
 
-const middlewares: Middleware[] = [contactListenerMiddleware.middleware];
+const middlewares: Middleware[] = [
+  // Session teardown runs before the contact listener so the socket is closed
+  // as part of handling logout, not after other effects have run.
+  sessionListenerMiddleware.middleware,
+  contactListenerMiddleware.middleware,
+];
 
 const rootReducer = (state: ReturnType<typeof appReducer>, action: AnyAction) => {
   if (action.type === 'auth/logout') {

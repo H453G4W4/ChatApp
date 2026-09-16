@@ -3,3 +3,4 @@ export * from './conversation-header';
 export * from './conversation-filters';
 export * from './conversation-actions';
 export * from './NewConversationFab';
+export * from './ConnectionBanner';

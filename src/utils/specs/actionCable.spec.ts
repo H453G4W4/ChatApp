@@ -197,6 +197,63 @@ describe('global queue socket handling', () => {
     },
   );
 
+  describe('session teardown', () => {
+    it('rejects events from the old server once the session is cleared', async () => {
+      state.conversations = reducer(state.conversations, addConversation(conversation));
+      const cable = init();
+
+      // What logout leaves behind: the root reducer has wiped auth.
+      state.auth = { user: undefined, headers: undefined, accessToken: undefined } as never;
+
+      await cable.onMessageCreated(event());
+      cable.onMessageUpdated(event({ content: 'Edited after logout' }));
+
+      expect(store.dispatch).not.toHaveBeenCalled();
+      expect(fetchConversation).not.toHaveBeenCalled();
+      expect(state.conversations.entities[conversation.id]!.messages).toEqual([]);
+    });
+
+    it('rejects events from a socket that was closed', async () => {
+      state.conversations = reducer(state.conversations, addConversation(conversation));
+      const cable = init();
+
+      connector.close();
+      (store.dispatch as jest.Mock).mockClear();
+
+      // close() forgets the connector, so `currentConnector === this` fails and
+      // a late callback from the closed socket cannot reach the store.
+      await cable.onMessageCreated(event());
+
+      expect(store.dispatch).not.toHaveBeenCalled();
+      expect(state.conversations.entities[conversation.id]!.messages).toEqual([]);
+      expect(connector.isConnected()).toBe(false);
+    });
+
+    it('rejects the old server’s events after reconnecting to a different one', async () => {
+      state.conversations = reducer(state.conversations, addConversation(conversation));
+      const oldServerCable = init();
+
+      // A second install: new pubsub token and a new auth session.
+      state.auth.user.pubsub_token = 'socket-token-two';
+      state.auth.headers.client = 'session-two';
+      init();
+
+      await oldServerCable.onMessageCreated(event());
+
+      expect(store.dispatch).not.toHaveBeenCalled();
+      expect(state.conversations.entities[conversation.id]!.messages).toEqual([]);
+    });
+
+    it('opens a live connector again on the next login', () => {
+      connector.close();
+      expect(connector.isConnected()).toBe(false);
+
+      init();
+
+      expect(connector.isConnected()).toBe(true);
+    });
+  });
+
   it('does not inject a conversation the server reports as missing', async () => {
     fetchConversation.mockRejectedValue({ response: { status: 404 } });
 

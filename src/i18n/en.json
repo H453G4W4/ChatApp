@@ -14,13 +14,16 @@
     "SETTINGS": "Settings"
   },
   "CONFIGURE_URL": {
-    "ENTER_URL": "Installation URL",
-    "DESCRIPTION": "If you are using a self-hosted Chatwoot installation, input your server URL. Otherwise, use app.chatwoot.com.",
+    "ENTER_URL": "Chatwoot Server",
+    "DESCRIPTION": "Enter the address of the Chatwoot server you work on. ChatApp connects over a secure (https) connection.",
     "URL_ERROR": "Enter a valid URL",
     "URL_REQUIRED": "URL is required",
     "CONNECT": "Connect",
     "CHANGE_LANGUAGE": "Change language",
-    "ERROR": "Invalid installation url"
+    "ERROR": "Invalid installation url",
+    "PLACEHOLDER": "https://your-chatwoot.example.com",
+    "CONNECTING": "Connecting…",
+    "UNREACHABLE": "Could not reach that server. Check the address and your connection."
   },
   "LOGIN": {
     "TITLE": "Log in to your account",
@@ -279,7 +282,8 @@
     "ERROR_TITLE": "Could not load conversations",
     "ERROR_BODY": "Check your connection and try again.",
     "RETRY": "Try again",
-    "REPLYING_TO": "Replying to %{name}"
+    "REPLYING_TO": "Replying to %{name}",
+    "RECONNECTING": "Connecting…"
   },
   "FILTER": {
     "ALL_INBOXES": "All inboxes",
@@ -474,7 +478,9 @@
     "NO_ACCOUNTS_MESSAGE": "You don't have access to any chatwoot accounts",
     "UNEXPECTED_TITLE": "Something went wrong",
     "UNEXPECTED_DESCRIPTION": "The app ran into an unexpected problem. You can try again without restarting.",
-    "TRY_AGAIN": "Try again"
+    "TRY_AGAIN": "Try again",
+    "SERVER_UNREACHABLE": "Could not reach the server. Check the address and your connection.",
+    "SERVER_ERROR": "The server could not complete the request. Please try again later."
   },
   "SUCCESS": {
     "AUTH": "Login Successful"

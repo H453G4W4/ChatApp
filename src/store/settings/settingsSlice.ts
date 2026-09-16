@@ -20,8 +20,11 @@ interface SettingsState {
   pushToken: string;
 }
 const initialState: SettingsState = {
-  baseUrl: 'app.chatwoot.com',
-  installationUrl: 'https://app.chatwoot.com/',
+  // No server is assumed. ChatApp connects to whichever Chatwoot installation
+  // the agent enters, so a fresh install must start with an empty field rather
+  // than pointing at somebody else's instance.
+  baseUrl: '',
+  installationUrl: '',
   uiFlags: {
     isSettingUrl: false,
     isUpdating: false,
@@ -37,7 +40,7 @@ const initialState: SettingsState = {
     selected_push_flags: [],
     user_id: 0,
   },
-  webSocketUrl: 'wss://app.chatwoot.com/cable',
+  webSocketUrl: '',
   theme: 'system',
   version: '',
   pushToken: '',

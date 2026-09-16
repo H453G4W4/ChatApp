@@ -29,6 +29,7 @@ import { MESSAGE_MAX_LENGTH, REPLY_EDITOR_MODES } from '@/constants';
 import { tailwind } from '@/theme';
 import {
   selectMessageContent,
+  selectDraftScope,
   selectAttachments,
   selectQuoteMessage,
   resetSentMessage,
@@ -121,7 +122,8 @@ const BottomSheetContent = () => {
   const userId = useAppSelector(selectUserId);
   const userThumbnail = useAppSelector(selectUserThumbnail);
   const userName = useAppSelector(selectUserName);
-  const messageContent = useAppSelector(selectMessageContent(conversationId));
+  const draftScope = useAppSelector(selectDraftScope);
+  const messageContent = useAppSelector(selectMessageContent(draftScope, conversationId));
   const attachedFiles = useAppSelector(selectAttachments);
   const quoteMessage = useAppSelector(selectQuoteMessage);
   const isPrivate = useAppSelector(selectIsPrivateMessage);
@@ -300,13 +302,13 @@ const BottomSheetContent = () => {
   };
 
   const handleCopilotAccept = () => {
-    dispatch(setMessageContent({ conversationId, content: generatedContent }));
+    dispatch(setMessageContent({ scope: draftScope, conversationId, content: generatedContent }));
     dispatch(resetCopilot());
   };
 
   const handleCopilotDiscard = () => {
     copilotAbortRef.current?.abort();
-    dispatch(setMessageContent({ conversationId, content: originalContent }));
+    dispatch(setMessageContent({ scope: draftScope, conversationId, content: originalContent }));
     dispatch(resetCopilot());
   };
 
@@ -438,7 +440,7 @@ const BottomSheetContent = () => {
   const sendMessage = (messagePayload: SendMessagePayload) => {
     dispatch(conversationActions.sendMessage(messagePayload));
     // Clears this conversation's draft, attachments and quote in one go.
-    dispatch(resetSentMessage({ conversationId }));
+    dispatch(resetSentMessage({ scope: draftScope, conversationId }));
     setSelectedCannedResponse(null);
     setCCEmails('');
     setBCCEmails('');

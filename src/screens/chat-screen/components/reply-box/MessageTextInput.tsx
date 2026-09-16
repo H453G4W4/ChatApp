@@ -20,6 +20,7 @@ import {
   selectIsPrivateMessage,
   selectQuoteMessage,
   selectMessageContent,
+  selectDraftScope,
 } from '@/store/conversation/sendMessageSlice';
 import { REPLY_EDITOR_MODES } from '@/constants';
 import i18n from '@/i18n';
@@ -88,7 +89,8 @@ export const MessageTextInput = ({
     useChatWindowContext();
   // Draft is stored per conversation, so the composer restores what was typed
   // here when the agent comes back to this thread.
-  const messageContent = useAppSelector(selectMessageContent(conversationId));
+  const draftScope = useAppSelector(selectDraftScope);
+  const messageContent = useAppSelector(selectMessageContent(draftScope, conversationId));
 
   const isPrivateMessage = useAppSelector(selectIsPrivateMessage);
   const quoteMessage = useAppSelector(selectQuoteMessage);
@@ -130,7 +132,7 @@ export const MessageTextInput = ({
 
   const onChangeText = (text: string) => {
     startTyping();
-    dispatch(setMessageContent({ conversationId, content: text }));
+    dispatch(setMessageContent({ scope: draftScope, conversationId, content: text }));
   };
 
   const handleOnFocus = useCallback(

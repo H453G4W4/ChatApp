@@ -1,3 +1,4 @@
+import { URL_TYPE } from '@/constants/url';
 import {
   buildWebSocketUrl,
   checkValidUrl,
@@ -130,4 +131,42 @@ describe('checkValidUrl', () => {
   it('rejects an empty URL', () => {
     expect(checkValidUrl({ url: '' })).toBe(false);
   });
+});
+
+describe('the installation URL the app connects with', () => {
+  /** Mirrors how settingsActions.setInstallationUrl builds the base URL. */
+  const installationUrlFor = (entered: string) => `${URL_TYPE}${extractDomain({ url: entered })}/`;
+
+  it.each([
+    ['chat.example.com'],
+    ['https://chat.example.com'],
+    ['https://chat.example.com/'],
+    ['  chat.example.com/app/accounts/1  '],
+  ])('normalizes %j to one canonical https base URL', entered => {
+    expect(installationUrlFor(entered)).toBe('https://chat.example.com/');
+    expect(checkValidUrl({ url: installationUrlFor(entered) })).toBe(true);
+  });
+
+  it('upgrades an http address to https rather than connecting in the clear', () => {
+    // There is no development opt-out for plain http in this app, so an entered
+    // http:// address is still dialled over TLS.
+    expect(installationUrlFor('http://chat.example.com')).toBe('https://chat.example.com/');
+  });
+
+  it('keeps a non-default port, which self-hosted installs often use', () => {
+    expect(installationUrlFor('chat.example.com:3000')).toBe('https://chat.example.com:3000/');
+  });
+
+  it('derives the websocket endpoint from the same host', () => {
+    const host = extractDomain({ url: 'https://chat.example.com/app' });
+
+    expect(buildWebSocketUrl(host)).toBe('wss://chat.example.com/cable');
+  });
+
+  it.each([['app chatwoot com'], ['https://'], ['not a url at all']])(
+    'refuses to build a base URL from %j',
+    entered => {
+      expect(checkValidUrl({ url: installationUrlFor(entered) })).toBe(false);
+    },
+  );
 });

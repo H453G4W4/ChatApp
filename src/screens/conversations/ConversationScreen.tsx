@@ -10,6 +10,7 @@ import {
   StatusFilters,
   InboxFilters,
   NewConversationFab,
+  ConnectionBanner,
 } from './components';
 
 import { ActionTabs } from '@/components-next';
@@ -312,6 +313,7 @@ const ConversationScreen = () => {
       />
       <ConversationListStateProvider>
         <ConversationHeader />
+        <ConnectionBanner />
         <Animated.View
           style={tailwind.style('flex-1')}
           layout={LinearTransition.springify().damping(22).stiffness(180)}>

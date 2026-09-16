@@ -66,13 +66,10 @@ class BaseActionCableConnector {
     }
   };
 
-  private handleConnected = (): void => {
-    console.log('Connected to ActionCable');
-  };
+  // Overridden by the concrete connector to report connection state upward.
+  protected handleConnected = (): void => {};
 
-  private handleDisconnected = (): void => {
-    console.log('Disconnected from ActionCable');
-  };
+  protected handleDisconnected = (): void => {};
 }
 
 export default BaseActionCableConnector;

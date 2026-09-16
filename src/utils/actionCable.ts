@@ -19,6 +19,11 @@ import {
   transformNotificationRemovedResponse,
 } from './camelCaseKeys';
 import { addNotification } from '@/store/notification/notificationSlice';
+import {
+  realtimeConnected,
+  realtimeDisconnected,
+  realtimeReset,
+} from '@/store/connection/connectionSlice';
 import { setCurrentUserAvailability } from '@/store/auth/authSlice';
 import { removeNotification } from '@/store/notification/notificationSlice';
 import {
@@ -70,6 +75,15 @@ class ActionCableConnector extends BaseActionCableConnector {
       // 'first.reply.created': this.onFirstReplyCreated,
     };
   }
+
+  /** Reports socket state so the UI can show a passive reconnecting hint. */
+  protected handleConnected = (): void => {
+    if (currentConnector === this) store.dispatch(realtimeConnected());
+  };
+
+  protected handleDisconnected = (): void => {
+    if (currentConnector === this) store.dispatch(realtimeDisconnected());
+  };
 
   /**
    * Confirms the event belongs to the session this connector was opened for.
@@ -247,5 +261,28 @@ export default {
     currentConnector?.disconnect();
     currentConnector = new ActionCableConnector(pubSubToken, webSocketUrl, accountId, userId);
     return currentConnector;
+  },
+
+  /**
+   * Closes the socket and forgets the connector.
+   *
+   * Without this, logging out left the previous instance's WebSocket open until
+   * the app was killed or another login replaced it. Its events were already
+   * discarded by `isCurrentSession`, so nothing leaked into the next session,
+   * but the connection itself lingered against the old server.
+   *
+   * Clearing `currentConnector` also makes that guard fail closed: a late
+   * callback from the closed socket can no longer be the current connector.
+   */
+  close() {
+    currentConnector?.disconnect();
+    currentConnector = null;
+    // A deliberate close is not a lost connection, so the banner stays hidden.
+    store.dispatch(realtimeReset());
+  },
+
+  /** Test seam: whether a live connector is currently held. */
+  isConnected() {
+    return currentConnector !== null;
   },
 };

@@ -34,6 +34,12 @@ export interface ConversationState {
 export const conversationAdapter = createEntityAdapter<Conversation>();
 
 const initialState = conversationAdapter.getInitialState<ConversationState>({
+  // Explicitly null, not undefined: the fulfilled/rejected guards treat
+  // undefined as "no request tracking yet" and accept the response. After a
+  // reset - logout, account switch, queue clear - there is no active request,
+  // so a reply still in flight from the previous session must be dropped
+  // rather than repopulating the queue with another server's conversations.
+  activeConversationsRequestId: null,
   meta: {
     mineCount: 0,
     unassignedCount: 0,
