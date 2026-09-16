@@ -1,12 +1,5 @@
 import React, { FC, useCallback, useEffect, useMemo } from 'react';
-import {
-  BlurEvent,
-  FocusEvent,
-  Platform,
-  Pressable,
-  StyleSheet,
-  ScrollView,
-} from 'react-native';
+import { BlurEvent, FocusEvent, Platform, Pressable, StyleSheet, ScrollView } from 'react-native';
 import Animated, {
   LayoutAnimationConfig,
   LinearTransition,
@@ -84,7 +77,6 @@ export const MessageTextInput = ({
   agents,
 }: MessageTextInputProps) => {
   const dispatch = useAppDispatch();
-  const messageContent = useAppSelector(selectMessageContent);
 
   const lockIconAnimatedPosition = useAnimatedStyle(() => {
     return {
@@ -94,6 +86,9 @@ export const MessageTextInput = ({
 
   const { setAddMenuOptionSheetState, textInputRef, setIsTextInputFocused, conversationId } =
     useChatWindowContext();
+  // Draft is stored per conversation, so the composer restores what was typed
+  // here when the agent comes back to this thread.
+  const messageContent = useAppSelector(selectMessageContent(conversationId));
 
   const isPrivateMessage = useAppSelector(selectIsPrivateMessage);
   const quoteMessage = useAppSelector(selectQuoteMessage);
@@ -135,7 +130,7 @@ export const MessageTextInput = ({
 
   const onChangeText = (text: string) => {
     startTyping();
-    dispatch(setMessageContent(text));
+    dispatch(setMessageContent({ conversationId, content: text }));
   };
 
   const handleOnFocus = useCallback(
@@ -243,9 +238,10 @@ export const MessageTextInput = ({
           style={[
             tailwind.style(
               'text-base font-inter-normal-20 tracking-[0.24px] leading-[20px] android:leading-[18px]',
-              'ml-[5px] mr-2 py-2 pl-3 pr-[36px] rounded-2xl text-gray-950',
-              'min-h-9 max-h-[76px]',
-              isPrivateMessage ? 'bg-amber-100' : 'bg-blackA-A4',
+              // Pill-shaped input on a hairline, the way chat composers read.
+              'ml-[5px] mr-2 py-2 pl-3.5 pr-[36px] rounded-3xl text-gray-950',
+              'min-h-9 max-h-[76px] border-[1px]',
+              isPrivateMessage ? 'bg-amber-100 border-amber-700' : 'bg-white border-blackA-A4',
             ),
             // TODO: Try settings includeFontPadding to false and have a single lineHeight value of 20
           ]}
@@ -256,7 +252,6 @@ export const MessageTextInput = ({
               ? `${i18n.t('CONVERSATION.PRIVATE_MSG_INPUT')}`
               : `${i18n.t('CONVERSATION.TYPE_MESSAGE')}`
           }
-          onSubmitEditing={() => setMessageContent('')}
           value={messageContent}
           returnKeyType={'default'}
           textAlignVertical="top"

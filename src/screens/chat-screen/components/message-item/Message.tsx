@@ -37,9 +37,13 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import { CopyIcon, Trash, ReplyIcon, TranslateIcon } from '@/svg-icons';
 import { setQuoteMessage } from '@/store/conversation/sendMessageSlice';
 import { inboxSupportsReplyTo, isAWhatsAppChannel } from '@/utils';
-import { getMessageOrientation, getMessageVariant } from '@/utils/messageAppearanceUtils';
+import {
+  getBubbleSurface,
+  getMessageOrientation,
+  getMessageVariant,
+} from '@/utils/messageAppearanceUtils';
 import { MenuOption, MessageMenu } from '../message-menu';
-import { tailwind } from '@/theme';
+import { chatTokens, tailwind } from '@/theme';
 import { Dimensions, View, Text } from 'react-native';
 import { Avatar } from '@/components-next';
 import { useTargetMessageAnimation } from './useTargetMessageAnimation';
@@ -82,35 +86,6 @@ type MessageWrapperProps = {
   canSendPublicReply: boolean;
 };
 
-const variantTextMap = {
-  [MESSAGE_VARIANTS.AGENT]: 'text-gray-700',
-  [MESSAGE_VARIANTS.USER]: 'text-white',
-  [MESSAGE_VARIANTS.BOT]: 'text-gray-700',
-  [MESSAGE_VARIANTS.TEMPLATE]: 'text-gray-700',
-  [MESSAGE_VARIANTS.ERROR]: 'text-white',
-};
-
-const variantBaseMap = {
-  [MESSAGE_VARIANTS.AGENT]: 'bg-gray-100',
-  [MESSAGE_VARIANTS.PRIVATE]: 'bg-amber-100',
-  [MESSAGE_VARIANTS.USER]: 'bg-blue-700',
-  [MESSAGE_VARIANTS.BOT]: 'bg-blue-100',
-  [MESSAGE_VARIANTS.TEMPLATE]: 'bg-blue-100',
-  [MESSAGE_VARIANTS.ERROR]: 'bg-ruby-700',
-  [MESSAGE_VARIANTS.EMAIL]: 'bg-gray-100',
-  [MESSAGE_VARIANTS.UNSUPPORTED]: 'bg-amber-100 border border-dashed border-amber-700',
-};
-
-const variantBorderMap = {
-  [MESSAGE_VARIANTS.AGENT]: 'border-gray-100',
-  [MESSAGE_VARIANTS.USER]: 'border-gray-100',
-  [MESSAGE_VARIANTS.BOT]: 'border-gray-100',
-  [MESSAGE_VARIANTS.TEMPLATE]: 'border-gray-100',
-  [MESSAGE_VARIANTS.ERROR]: 'border-gray-100',
-  [MESSAGE_VARIANTS.EMAIL]: 'border-gray-100',
-  [MESSAGE_VARIANTS.UNSUPPORTED]: 'border-gray-100',
-};
-
 const MessageWrapper = ({
   children,
   item,
@@ -143,6 +118,13 @@ const MessageWrapper = ({
   const windowWidth = Dimensions.get('window').width;
   // 52 is the sum of the left and right padding (12 + 12) and avatar width (24) and gap between avatar and message (4)
   const EMAIL_WIDTH = windowWidth - 52;
+  // Chat bubbles cap at roughly four fifths of the screen. The floor keeps the
+  // existing attachment sizing (derived from TEXT_MAX_WIDTH) fitting on small
+  // screens, while wide phones stop wasting the right-hand third.
+  const BUBBLE_MAX_WIDTH = Math.round(Math.max(TEXT_MAX_WIDTH, Math.min(windowWidth * 0.78, 340)));
+
+  const isOwnBubble = orientation === ORIENTATION.RIGHT;
+  const { surface, footerText } = getBubbleSurface(variant, isOwnBubble);
 
   // Only the search-target row animates, so only it needs an Animated.View.
   const Bubble = isTargetMessage ? Animated.View : View;
@@ -167,10 +149,9 @@ const MessageWrapper = ({
           <Bubble
             style={[
               tailwind.style(
-                'relative pl-3 pr-2.5 py-2 rounded-2xl overflow-hidden',
-                `${variant === MESSAGE_VARIANTS.EMAIL ? `max-w-[${EMAIL_WIDTH}px]` : `max-w-[${TEXT_MAX_WIDTH}px]`}`,
-                variantBaseMap[variant],
-                variantBorderMap[variant],
+                chatTokens.chat.bubbleBase,
+                `${variant === MESSAGE_VARIANTS.EMAIL ? `max-w-[${EMAIL_WIDTH}px]` : `max-w-[${BUBBLE_MAX_WIDTH}px]`}`,
+                surface,
                 shouldGroupWithNext && shouldGroupWithPrevious
                   ? orientation === ORIENTATION.LEFT
                     ? 'rounded-l-none'
@@ -198,15 +179,8 @@ const MessageWrapper = ({
               />
             )}
             {!shouldGroupWithPrevious && (
-              <View
-                style={tailwind.style(
-                  'h-[21px] pt-[5px] pb-0.5 flex flex-row items-center justify-end',
-                )}>
-                <Text
-                  style={tailwind.style(
-                    'text-xs font-inter-420-20 tracking-[0.32px] pr-1',
-                    variantTextMap[variant],
-                  )}>
+              <View style={tailwind.style(chatTokens.chat.footer)}>
+                <Text style={tailwind.style(chatTokens.chat.footerText, footerText)}>
                   {unixTimestampToReadableTime(item.createdAt)}
                 </Text>
                 <DeliveryStatus

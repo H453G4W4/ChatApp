@@ -7,6 +7,7 @@ import {
   SENDER_TYPES,
 } from '@/constants';
 import type { Message } from '@/types';
+import { chatTokens } from '@/theme/chatTokens';
 
 const BOT_SENDER_TYPES: string[] = [SENDER_TYPES.AGENT_BOT, SENDER_TYPES.CAPTAIN_ASSISTANT];
 
@@ -85,3 +86,60 @@ export const getMessageVariant = (message: Message, isEmailInbox: boolean): stri
 
   return variants[messageType] || MESSAGE_VARIANTS.USER;
 };
+
+export type BubbleSurface = {
+  /** Background (and border, where the surface needs one) for the bubble. */
+  surface: string;
+  /** Colour for the timestamp and ticks in the bubble footer. */
+  footerText: string;
+};
+
+/**
+ * Picks the bubble treatment for a message.
+ *
+ * The thread follows the chat-app convention: the agent's own messages carry a
+ * tint on the right, everyone else's stay neutral on the left. Orientation is
+ * part of the decision because an email inbox gives both directions the same
+ * EMAIL variant - without it, a mail thread would be a single flat colour.
+ *
+ * Every surface here is light, so body text stays one dark colour everywhere
+ * and can never end up white-on-white.
+ */
+export const getBubbleSurface = (variant: string, isOwn: boolean): BubbleSurface => {
+  if (variant === MESSAGE_VARIANTS.PRIVATE) {
+    return {
+      surface: chatTokens.chat.surfacePrivate,
+      footerText: chatTokens.chat.surfacePrivateText,
+    };
+  }
+  if (variant === MESSAGE_VARIANTS.ERROR) {
+    return { surface: chatTokens.chat.surfaceError, footerText: chatTokens.chat.surfaceErrorText };
+  }
+  if (variant === MESSAGE_VARIANTS.UNSUPPORTED) {
+    return {
+      surface: chatTokens.chat.surfaceUnsupported,
+      footerText: chatTokens.chat.surfaceOtherText,
+    };
+  }
+  return isOwn
+    ? { surface: chatTokens.chat.surfaceOwn, footerText: chatTokens.chat.surfaceOwnText }
+    : {
+        // A white bubble needs a hairline to read against the neutral ground.
+        surface: `${chatTokens.chat.surfaceOther} ${chatTokens.chat.bubbleBorder}`,
+        footerText: chatTokens.chat.surfaceOtherText,
+      };
+};
+
+/**
+ * Whether the composer has something worth sending.
+ *
+ * Whitespace alone does not count, so the send affordance does not appear for a
+ * stray space; an attachment on its own does, since a caption is optional.
+ */
+export const canSendComposerMessage = ({
+  content,
+  attachmentCount = 0,
+}: {
+  content: string;
+  attachmentCount?: number;
+}): boolean => content.trim().length > 0 || attachmentCount > 0;

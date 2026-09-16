@@ -16,9 +16,13 @@ type ReplyMessageBubbleProps = {
   variant: string;
 };
 
+// A quoted block sits inside an already-light bubble, so it only needs to be a
+// shade away from its parent rather than a dark inversion.
 const variantBaseMap = {
-  [MESSAGE_VARIANTS.AGENT]: 'bg-white',
-  [MESSAGE_VARIANTS.USER]: 'bg-blackA-A7',
+  [MESSAGE_VARIANTS.AGENT]: 'bg-whiteA-A11',
+  [MESSAGE_VARIANTS.USER]: 'bg-blackA-A2',
+  [MESSAGE_VARIANTS.EMAIL]: 'bg-blackA-A2',
+  [MESSAGE_VARIANTS.PRIVATE]: 'bg-whiteA-A11',
 };
 
 export const ReplyMessageBubble = (props: ReplyMessageBubbleProps) => {

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, RefreshControl, StatusBar } from 'react-native';
+import { ActivityIndicator, AppState, Pressable, RefreshControl, StatusBar } from 'react-native';
 import Animated, { LinearTransition, SharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
@@ -23,7 +23,7 @@ import {
   useRefsContext,
 } from '@/context';
 
-import { tailwind } from '@/theme';
+import { chatTokens, tailwind } from '@/theme';
 import { Conversation } from '@/types';
 import { useAppDispatch, useAppSelector } from '@/hooks';
 import {
@@ -34,6 +34,7 @@ import { resetActionState } from '@/store/conversation/conversationActionSlice';
 import { conversationActions } from '@/store/conversation/conversationActions';
 import {
   selectConversationsLoading,
+  selectConversationError,
   selectIsAllConversationsFetched,
   getFilteredConversations,
 } from '@/store/conversation/conversationSelectors';
@@ -80,6 +81,7 @@ const ConversationList = () => {
 
   // This is used to check if the conversations are still loading
   const isConversationsLoading = useAppSelector(selectConversationsLoading);
+  const conversationsError = useAppSelector(selectConversationError);
   // This is used to check if all the conversations are fetched
   const isAllConversationsFetched = useAppSelector(selectIsAllConversationsFetched);
 
@@ -224,23 +226,37 @@ const ConversationList = () => {
   const allConversations = useAppSelector(state => getFilteredConversations(state, filters));
 
   const shouldShowEmptyLoader = isConversationsLoading && allConversations.length === 0;
+  // An empty queue means something different when the request itself failed.
+  const hasLoadError = Boolean(conversationsError) && allConversations.length === 0;
 
   return shouldShowEmptyLoader ? (
-    <Animated.View
-      style={tailwind.style('flex-1 items-center justify-center', `pb-[${tabBarHeight}px]`)}>
+    <Animated.View style={tailwind.style(chatTokens.state.container, `pb-[${tabBarHeight}px]`)}>
       <ActivityIndicator />
     </Animated.View>
   ) : allConversations.length === 0 ? (
     <Animated.ScrollView
       refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
-      contentContainerStyle={tailwind.style(
-        'flex-1 items-center justify-center',
-        `pb-[${tabBarHeight}px]`,
-      )}>
+      contentContainerStyle={tailwind.style(chatTokens.state.container, `pb-[${tabBarHeight}px]`)}>
       <EmptyStateIcon />
-      <Animated.Text style={tailwind.style('pt-6 text-md  tracking-[0.32px] text-gray-800')}>
-        {i18n.t('CONVERSATION.EMPTY')}
+      <Animated.Text
+        testID="conversation-list-state-title"
+        style={tailwind.style(chatTokens.state.title)}>
+        {hasLoadError ? i18n.t('CONVERSATION.ERROR_TITLE') : i18n.t('CONVERSATION.EMPTY_TITLE')}
       </Animated.Text>
+      <Animated.Text style={tailwind.style(chatTokens.state.body)}>
+        {hasLoadError ? i18n.t('CONVERSATION.ERROR_BODY') : i18n.t('CONVERSATION.EMPTY')}
+      </Animated.Text>
+      {hasLoadError ? (
+        <Pressable
+          accessibilityRole="button"
+          testID="conversation-list-retry"
+          onPress={handleRefresh}
+          style={({ pressed }) => tailwind.style(chatTokens.state.retry, pressed && 'opacity-80')}>
+          <Animated.Text style={tailwind.style(chatTokens.state.retryText)}>
+            {i18n.t('CONVERSATION.RETRY')}
+          </Animated.Text>
+        </Pressable>
+      ) : null}
     </Animated.ScrollView>
   ) : (
     <AnimatedFlashList

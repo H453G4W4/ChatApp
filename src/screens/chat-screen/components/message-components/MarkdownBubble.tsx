@@ -14,9 +14,11 @@ type MarkdownBubbleProps = {
   variant: string;
 };
 
+// Every bubble surface is light now (own is tinted, others are white), so body
+// copy is one dark colour throughout; only the error bubble stays reversed.
 const variantTextMap = {
   [MESSAGE_VARIANTS.AGENT]: 'text-gray-950',
-  [MESSAGE_VARIANTS.USER]: 'text-white',
+  [MESSAGE_VARIANTS.USER]: 'text-gray-950',
   [MESSAGE_VARIANTS.BOT]: 'text-gray-950',
   [MESSAGE_VARIANTS.TEMPLATE]: 'text-gray-950',
   [MESSAGE_VARIANTS.ERROR]: 'text-white',

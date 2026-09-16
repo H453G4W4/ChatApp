@@ -6,7 +6,7 @@ import { Image } from 'expo-image';
 
 import { useRefsContext } from '@/context';
 import { CloseIcon, FileIcon, VoiceNote } from '@/svg-icons';
-import { tailwind } from '@/theme';
+import { chatTokens, tailwind } from '@/theme';
 import { isMarkdown } from '@/utils';
 import { Icon } from '@/components-next/common';
 
@@ -16,6 +16,7 @@ import { selectQuoteMessage, setQuoteMessage } from '@/store/conversation/sendMe
 
 import { VideoBubblePlayer } from '../message-components';
 import { Message } from '@/types';
+import i18n from '@/i18n';
 
 const AudioIcon = () => {
   return (
@@ -104,7 +105,8 @@ export const QuoteReply = () => {
   return (
     <Pressable
       onPress={handleScrollToMessage}
-      style={tailwind.style('flex flex-row items-center px-2.5 pb-[14px] bg-white -z-10')}>
+      testID="quote-reply-banner"
+      style={tailwind.style('flex-row items-center bg-white -z-10', chatTokens.composer.banner)}>
       {quoteMessage?.attachments?.length && quoteMessage?.attachments?.length > 0 ? (
         <Animated.View style={tailwind.style('h-9.5 w-9.5 mr-3 rounded-lg overflow-hidden')}>
           {quoteMessage?.attachments?.length > 0 &&
@@ -131,11 +133,8 @@ export const QuoteReply = () => {
       ) : null}
       <Animated.View style={tailwind.style('flex-1')}>
         <Animated.View>
-          <Animated.Text
-            style={tailwind.style(
-              'text-cxs tracking-[0.32px] leading-[15px] font-inter-420-20 text-blackA-A11',
-            )}>
-            Replying to {quoteMessage?.sender?.name}
+          <Animated.Text numberOfLines={1} style={tailwind.style(chatTokens.composer.bannerLabel)}>
+            {i18n.t('CONVERSATION.REPLYING_TO', { name: quoteMessage?.sender?.name ?? '' })}
           </Animated.Text>
         </Animated.View>
         <Animated.View style={tailwind.style('pt-0.5')}>
@@ -155,22 +154,21 @@ export const QuoteReply = () => {
                   : ''}
               </Markdown>
             ) : (
-              <Text
-                numberOfLines={1}
-                style={tailwind.style('text-md font-inter-normal-20 tracking-[0.32px]')}>
+              <Text numberOfLines={1} style={tailwind.style(chatTokens.composer.bannerBody)}>
                 {quoteMessage?.content}
               </Text>
             )
           ) : (
-            <Text
-              style={tailwind.style('text-md font-inter-normal-20 tracking-[0.32px]')}>
+            <Text style={tailwind.style(chatTokens.composer.bannerBody)}>
               {quoteMessage?.attachments?.[0]?.fileType}
             </Text>
           )}
         </Animated.View>
       </Animated.View>
       <Pressable
-        style={tailwind.style('h-10 w-10 items-center justify-center -mr-[1px]')}
+        testID="quote-reply-close"
+        hitSlop={8}
+        style={tailwind.style('h-8 w-8 items-center justify-center')}
         onPress={handleOnPressClose}>
         <Icon icon={<CloseIcon />} size={24} />
       </Pressable>

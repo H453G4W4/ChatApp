@@ -339,6 +339,9 @@ const conversationSlice = createSlice({
         )
           return;
         state.isLoadingConversations = false;
+        // Recorded so an empty queue can tell "nothing here" apart from "the
+        // request failed" and offer a retry. Queue contents are untouched.
+        state.error = action.error?.message ?? 'ERRORS.COMMON_ERROR';
       })
       .addCase(conversationActions.fetchConversation.pending, state => {
         state.error = null;

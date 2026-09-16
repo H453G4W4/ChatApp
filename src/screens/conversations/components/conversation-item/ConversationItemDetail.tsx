@@ -48,7 +48,7 @@ export const ConversationItemDetail = memo(function ConversationItemDetail({
     <AnimatedNativeView
       layout={LinearTransition.springify().mass(1).damping(21).stiffness(115)}
       style={tailwind.style(
-        'flex-1 min-w-0 flex-row items-center gap-2 py-2.5',
+        'flex-1 min-w-0 flex-row items-center gap-2 py-2',
         chatTokens.screen.divider,
       )}>
       <NativeView style={tailwind.style('flex-1 min-w-0 gap-0.5')}>
@@ -58,6 +58,7 @@ export const ConversationItemDetail = memo(function ConversationItemDetail({
             style={tailwind.style(
               chatTokens.list.name,
               'flex-shrink',
+              // Unread rows lead with a heavier name, the strongest cue in the row.
               isUnread && chatTokens.list.nameUnread,
             )}>
             {senderName}
@@ -69,7 +70,11 @@ export const ConversationItemDetail = memo(function ConversationItemDetail({
           {typingText ? (
             <TypingMessage typingText={typingText} />
           ) : lastMessage ? (
-            <ConversationLastMessage numberOfLines={1} lastMessage={lastMessage} />
+            <ConversationLastMessage
+              numberOfLines={1}
+              lastMessage={lastMessage}
+              isUnread={isUnread}
+            />
           ) : (
             <Text numberOfLines={1} style={tailwind.style(chatTokens.list.preview, 'flex-1')}>
               {i18n.t('CONVERSATION.NO_CONTENT')}

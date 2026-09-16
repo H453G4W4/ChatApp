@@ -3,7 +3,7 @@ import React, { memo } from 'react';
 import { ImageURISource } from 'react-native';
 
 import { NativeView } from '@/components-next/native-components';
-import { tailwind } from '@/theme';
+import { chatTokens, tailwind } from '@/theme';
 import {
   Agent,
   AvailabilityStatus,
@@ -75,8 +75,8 @@ export const ConversationItem = memo(
     typingText,
   }: ConversationItemProps) => {
     return (
-      <NativeView style={tailwind.style('px-3 gap-3 flex-row items-center')}>
-        <NativeView style={tailwind.style('py-2.5 flex-row items-center')}>
+      <NativeView style={tailwind.style(chatTokens.list.row)}>
+        <NativeView style={tailwind.style('py-2 flex-row items-center')}>
           <ConversationSelect {...{ isSelected, currentState }} />
           <ConversationAvatar
             src={{ uri: senderThumbnail } as ImageURISource}

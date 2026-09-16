@@ -158,7 +158,11 @@ const NewEmailScreen = () => {
       <ScreenHeader title={i18n.t('NEW_EMAIL.TITLE')} right={sendButton} />
 
       <KeyboardAvoidingView behavior="padding" style={tailwind.style('flex-1')}>
-        <ScrollView keyboardShouldPersistTaps="handled" style={tailwind.style('flex-1')}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          contentContainerStyle={tailwind.style('pb-8')}
+          style={tailwind.style('flex-1')}>
           <Field label={i18n.t('NEW_EMAIL.FROM')} error={errors.inboxId && i18n.t(errors.inboxId)}>
             {emailInboxes.length === 0 ? (
               <Text style={tailwind.style(chatTokens.form.hint)}>
@@ -211,8 +215,14 @@ const NewEmailScreen = () => {
           </Field>
 
           {isSearching ? (
-            <Text style={tailwind.style(chatTokens.form.hint, 'px-4 py-2')}>
+            <Text style={tailwind.style(chatTokens.form.hint, 'px-4 pt-3 pb-1')}>
               {i18n.t('NEW_EMAIL.SEARCHING')}
+            </Text>
+          ) : null}
+
+          {!pickedContact && results.length > 0 ? (
+            <Text style={tailwind.style(chatTokens.form.label, 'px-4 pt-3 pb-1')}>
+              {i18n.t('NEW_EMAIL.EXISTING_CONTACT')}
             </Text>
           ) : null}
 
@@ -298,6 +308,7 @@ const NewEmailScreen = () => {
               multiline
               textAlignVertical="top"
               style={tailwind.style(chatTokens.form.inputMultiline)}
+              scrollEnabled={false}
             />
           </Field>
 

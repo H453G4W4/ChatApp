@@ -53,6 +53,7 @@ import { CommandOptionsMenu } from '../message-components/CommandOptionsMenu';
 import { SendMessagePayload } from '@/store/conversation/conversationTypes';
 import { TypingIndicator } from './TypingIndicator';
 import { getTypingUsersText } from '@/utils';
+import { canSendComposerMessage } from '@/utils/messageAppearanceUtils';
 import { selectTypingUsersByConversationId } from '@/store/conversation/conversationTypingSlice';
 import { Agent, CannedResponse, Conversation } from '@/types';
 import AnalyticsHelper from '@/utils/analyticsUtils';
@@ -103,16 +104,7 @@ const BottomSheetContent = () => {
   const { bottom } = useSafeAreaInsets();
   const { messageListRef } = useRefsContext();
 
-  // Selectors
-  const userId = useAppSelector(selectUserId);
-  const userThumbnail = useAppSelector(selectUserThumbnail);
-  const userName = useAppSelector(selectUserName);
-  const messageContent = useAppSelector(selectMessageContent);
-  const attachedFiles = useAppSelector(selectAttachments);
-  const quoteMessage = useAppSelector(selectQuoteMessage);
-  const isPrivate = useAppSelector(selectIsPrivateMessage);
-
-  // Context
+  // Context - read first because the draft selector is keyed on the conversation.
   const {
     isAddMenuOptionSheetOpen,
     setAddMenuOptionSheetState,
@@ -124,6 +116,15 @@ const BottomSheetContent = () => {
     isCopilotMenuOpen,
     setIsCopilotMenuOpen,
   } = useChatWindowContext();
+
+  // Selectors
+  const userId = useAppSelector(selectUserId);
+  const userThumbnail = useAppSelector(selectUserThumbnail);
+  const userName = useAppSelector(selectUserName);
+  const messageContent = useAppSelector(selectMessageContent(conversationId));
+  const attachedFiles = useAppSelector(selectAttachments);
+  const quoteMessage = useAppSelector(selectQuoteMessage);
+  const isPrivate = useAppSelector(selectIsPrivateMessage);
 
   // Copilot
   const copilotAbortRef = useRef<{ abort: () => void; unwrap: () => Promise<unknown> }>();
@@ -299,22 +300,20 @@ const BottomSheetContent = () => {
   };
 
   const handleCopilotAccept = () => {
-    dispatch(setMessageContent(generatedContent));
+    dispatch(setMessageContent({ conversationId, content: generatedContent }));
     dispatch(resetCopilot());
   };
 
   const handleCopilotDiscard = () => {
     copilotAbortRef.current?.abort();
-    dispatch(setMessageContent(originalContent));
+    dispatch(setMessageContent({ conversationId, content: originalContent }));
     dispatch(resetCopilot());
   };
 
   const handleCopilotFollowUp = (message: string) => {
     if (followUpContext && message.trim().length > 0) {
       copilotAbortRef.current?.abort();
-      const promise = dispatch(
-        sendCopilotFollowUp({ followUpContext, message, conversationId }),
-      );
+      const promise = dispatch(sendCopilotFollowUp({ followUpContext, message, conversationId }));
       copilotAbortRef.current = promise;
       promise.unwrap().catch((err: { name?: string }) => {
         if (err?.name === 'AbortError') return;
@@ -438,9 +437,9 @@ const BottomSheetContent = () => {
 
   const sendMessage = (messagePayload: SendMessagePayload) => {
     dispatch(conversationActions.sendMessage(messagePayload));
-    dispatch(resetSentMessage());
+    // Clears this conversation's draft, attachments and quote in one go.
+    dispatch(resetSentMessage({ conversationId }));
     setSelectedCannedResponse(null);
-    dispatch(setMessageContent(''));
     setCCEmails('');
     setBCCEmails('');
     setToEmails('');
@@ -501,6 +500,12 @@ const BottomSheetContent = () => {
 
   const shouldShowCannedResponses = messageContent?.charAt(0) === '/';
 
+  // Send replaces the voice button only once there is real content to send.
+  const canSend = canSendComposerMessage({
+    content: messageContent ?? '',
+    attachmentCount: attachmentsLength,
+  });
+
   return (
     <AnimatedKeyboardStickyView style={[tailwind.style('bg-white'), animatedInputWrapperStyle]}>
       {!canReply && inbox && conversation && (
@@ -513,7 +518,11 @@ const BottomSheetContent = () => {
       )}
 
       <Animated.View
-        layout={isCopilotActive ? undefined : LinearTransition.springify().mass(1).damping(29).stiffness(140)}
+        layout={
+          isCopilotActive
+            ? undefined
+            : LinearTransition.springify().mass(1).damping(29).stiffness(140)
+        }
         style={tailwind.style(
           `pb-2 border-t-[1px] border-t-blackA-A3 ${shouldShowReplyHeader ? 'pt-0' : 'pt-2'}`,
         )}>
@@ -551,7 +560,11 @@ const BottomSheetContent = () => {
         ) : null}
         {!isVoiceRecorderOpen ? (
           <Animated.View
-            layout={isCopilotActive ? undefined : LinearTransition.springify().mass(1).damping(15).stiffness(105)}
+            layout={
+              isCopilotActive
+                ? undefined
+                : LinearTransition.springify().mass(1).damping(15).stiffness(105)
+            }
             style={tailwind.style('flex flex-row px-1 items-end z-20 relative')}>
             {!isCopilotActive && attachmentsLength === 0 && shouldShowFileUpload && (
               <AddCommandButton
@@ -587,10 +600,8 @@ const BottomSheetContent = () => {
                   agents={agents as Agent[]}
                   messageContent={messageContent}
                 />
-                {(messageContent.length > 0 || attachmentsLength > 0) && (
-                  <SendMessageButton onPress={() => confirmOnSendReply(null)} />
-                )}
-                {messageContent.length === 0 && attachmentsLength === 0 && shouldShowFileUpload ? (
+                {canSend && <SendMessageButton onPress={() => confirmOnSendReply(null)} />}
+                {!canSend && shouldShowFileUpload ? (
                   <VoiceRecordButton onPress={onPressVoiceRecordIcon} />
                 ) : null}
               </>

@@ -300,6 +300,26 @@ describe('NewEmailScreen', () => {
     act(() => tree.unmount());
   });
 
+  it('sends exactly the verified Phase 2 payload after the UI polish', async () => {
+    searchContacts.mockResolvedValue([ada]);
+    const { tree } = mount();
+    fillValidDraft(tree);
+
+    await act(async () => press(tree, 'new-email-send'));
+
+    // Visual changes must not shift the API contract verified against the
+    // Chatwoot v4.17.1 source in the previous phase.
+    expect(createConversation).toHaveBeenCalledWith({
+      inboxId: emailInbox.id,
+      contactId: ada.id,
+      sourceId: 'ada@example.com',
+      subject: 'Invoice question',
+      content: 'Hello there',
+    });
+    expect(createConversation).toHaveBeenCalledTimes(1);
+    act(() => tree.unmount());
+  });
+
   it('tells the agent when the account has no email inbox to send from', () => {
     const { tree } = mount([whatsappInbox]);
 

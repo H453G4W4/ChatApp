@@ -19,6 +19,8 @@ import { getPlainText } from '@/utils/messageFormatterUtils';
 type ConversationLastMessageProps = {
   numberOfLines: number;
   lastMessage: Message;
+  /** Unread rows darken the preview so the row reads as waiting. */
+  isUnread?: boolean;
 };
 
 export const ATTACHMENT_ICONS = {
@@ -79,9 +81,11 @@ const MessageType = ({ message, style }: { message: Message; style?: StyleProp<V
 const MessageContent = ({
   message,
   numberOfLines,
+  isUnread,
 }: {
   message: Message;
   numberOfLines: number;
+  isUnread?: boolean;
 }) => {
   const { contentAttributes } = message || {};
   const { email: { subject = '' } = {} } = contentAttributes || {};
@@ -132,10 +136,10 @@ const MessageContent = ({
 };
 
 export const ConversationLastMessage = (props: ConversationLastMessageProps) => {
-  const { numberOfLines, lastMessage } = props;
+  const { numberOfLines, lastMessage, isUnread } = props;
   return (
     <NativeView style={tailwind.style('flex-1 min-w-0 flex-row gap-1 items-center')}>
-      <MessageContent message={lastMessage} numberOfLines={numberOfLines} />
+      <MessageContent message={lastMessage} numberOfLines={numberOfLines} isUnread={isUnread} />
     </NativeView>
   );
 };

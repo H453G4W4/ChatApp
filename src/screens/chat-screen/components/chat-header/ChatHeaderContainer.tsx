@@ -13,9 +13,10 @@ import { DashboardList } from './DropdownMenu';
 import { ImageSourcePropType } from 'react-native';
 import { SLAStatus } from '@/types/common/SLA';
 import { evaluateSLAStatus } from '@chatwoot/utils';
-import { resetSentMessage } from '@/store/conversation/sendMessageSlice';
+import { resetAttachments, setQuoteMessage } from '@/store/conversation/sendMessageSlice';
 import { selectAllDashboardApps } from '@/store/dashboard-app/dashboardAppSlice';
 import { selectUser } from '@/store/auth/authSelectors';
+import { selectInboxById } from '@/store/inbox/inboxSelectors';
 
 type ChatScreenHeaderProps = {
   name: string;
@@ -30,6 +31,12 @@ export const ChatHeaderContainer = (props: ChatScreenHeaderProps) => {
   const dispatch = useAppDispatch();
   const { conversationId } = useChatWindowContext();
   const conversation = useAppSelector(state => selectConversationById(state, conversationId));
+  const inbox = useAppSelector(state =>
+    conversation?.inboxId ? selectInboxById(state, conversation.inboxId) : undefined,
+  );
+  // Address first, since an email thread is identified by it; inbox name after,
+  // so an agent working several inboxes can see which one this arrived on.
+  const subtitle = [conversation?.meta?.sender?.email, inbox?.name].filter(Boolean).join(' · ');
   const currentUser = useAppSelector(selectUser);
   const dashboardApps = useAppSelector(selectAllDashboardApps);
 
@@ -88,7 +95,10 @@ export const ChatHeaderContainer = (props: ChatScreenHeaderProps) => {
   }, [createTimer, updateSlaStatus]);
 
   const handleBackPress = () => {
-    dispatch(resetSentMessage());
+    // Leaving the thread drops the attachments and the quoted reply, but keeps
+    // the typed draft so it is still there when the agent comes back.
+    dispatch(resetAttachments());
+    dispatch(setQuoteMessage(null));
     if (navigation.canGoBack()) {
       navigation.dispatch(StackActions.pop());
     } else {
@@ -161,6 +171,7 @@ export const ChatHeaderContainer = (props: ChatScreenHeaderProps) => {
   return (
     <ChatHeader
       name={name}
+      subtitle={subtitle}
       imageSrc={imageSrc}
       isResolved={isResolved}
       dashboardsList={dashboardsList}

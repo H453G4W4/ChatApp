@@ -7,6 +7,8 @@ import { ChannelIndicator } from '@/components-next/list-components/ChannelIndic
 import { UnreadIndicator } from '../UnreadIndicator';
 import type { Inbox } from '@/types/Inbox';
 import type { Message } from '@/types';
+import { chatTokens, tailwind } from '@/theme';
+import { LastActivityTime } from '../LastActivityTime';
 
 const emailInbox = {
   id: 1,
@@ -125,5 +127,56 @@ describe('WhatsApp-style conversation row', () => {
   it('prefers the typing indicator over the stored preview', () => {
     tree = render({ typingText: 'Ada is typing…' });
     expect(textOf(tree)).toContain('Ada is typing…');
+  });
+
+  describe('unread hierarchy', () => {
+    const flatten = (style: unknown): Record<string, unknown> =>
+      Array.isArray(style)
+        ? style.reduce<Record<string, unknown>>((all, entry) => ({ ...all, ...flatten(entry) }), {})
+        : ((style ?? {}) as Record<string, unknown>);
+
+    const nameStyle = (t: renderer.ReactTestRenderer) =>
+      flatten(t.root.findAllByType(Text)[0].props.style);
+
+    const timeStyle = (t: renderer.ReactTestRenderer) =>
+      flatten(t.root.findByType(LastActivityTime).findByType(Text).props.style);
+
+    it('gives an unread row a heavier name than a read one', () => {
+      tree = render({ unreadCount: 0 });
+      const read = nameStyle(tree);
+      act(() => tree!.unmount());
+
+      tree = render({ unreadCount: 3 });
+      const unread = nameStyle(tree);
+
+      expect(unread.fontFamily).not.toBe(read.fontFamily);
+      expect(unread.fontFamily).toBe(
+        flatten(tailwind.style(chatTokens.list.nameUnread)).fontFamily,
+      );
+    });
+
+    it('tints the timestamp on an unread row', () => {
+      tree = render({ unreadCount: 0 });
+      const read = timeStyle(tree);
+      act(() => tree!.unmount());
+
+      tree = render({ unreadCount: 2 });
+      const unread = timeStyle(tree);
+
+      expect(unread.color).not.toBe(read.color);
+      expect(unread.color).toBe(flatten(tailwind.style(chatTokens.list.timestampUnread)).color);
+    });
+
+    it('keeps the row height stable whether or not it is unread', () => {
+      // A reserved badge slot stops rows resizing as unread counts change,
+      // which would otherwise jolt the list during a realtime reorder.
+      tree = render({ unreadCount: 0 });
+      const readTexts = tree.root.findAllByType(Text).length;
+      act(() => tree!.unmount());
+
+      tree = render({ unreadCount: 5 });
+      // Exactly one extra Text: the badge count.
+      expect(tree.root.findAllByType(Text).length).toBe(readTexts + 1);
+    });
   });
 });

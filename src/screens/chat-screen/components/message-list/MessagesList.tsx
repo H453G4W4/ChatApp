@@ -3,7 +3,7 @@ import React from 'react';
 import Animated, { interpolate, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { FlashList, FlashListRef } from '@shopify/flash-list';
 import { useAppKeyboardAnimation } from '@/utils';
-import { tailwind } from '@/theme';
+import { chatTokens, tailwind } from '@/theme';
 import { Message } from '@/types';
 import { MessageComponent } from '../message-item/Message';
 import { useRefsContext } from '@/context';
@@ -17,14 +17,12 @@ const AnimatedFlashlist = Animated.createAnimatedComponent(FlashList<Message | {
 
 type DateSectionProps = { item: { date: string } };
 
+/** Centered Today / Yesterday / date pill between day groups. */
 const DateSection = ({ item }: DateSectionProps) => {
   return (
-    <Animated.View style={tailwind.style('flex flex-row justify-center items-center py-4')}>
-      <Animated.View style={tailwind.style('rounded-lg py-1 px-[7px] bg-blackA-A3')}>
-        <Animated.Text
-          style={tailwind.style(
-            'text-cxs font-inter-420-20 tracking-[0.32px] text-blackA-A11 leading-[15px]',
-          )}>
+    <Animated.View style={tailwind.style('flex-row justify-center items-center py-3')}>
+      <Animated.View style={tailwind.style(chatTokens.chat.datePill)}>
+        <Animated.Text style={tailwind.style(chatTokens.chat.datePillText)}>
           {item.date}
         </Animated.Text>
       </Animated.View>
@@ -89,7 +87,11 @@ export const MessagesList = ({
   });
 
   return (
-    <Animated.View style={[tailwind.style('flex-1 min-h-10'), animatedFlashlistStyle]}>
+    <Animated.View
+      style={[
+        tailwind.style('flex-1 min-h-10', chatTokens.chat.background),
+        animatedFlashlistStyle,
+      ]}>
       <AnimatedFlashlist
         onLoad={() => {
           // Search navigation positions once items are drawn (measured), so

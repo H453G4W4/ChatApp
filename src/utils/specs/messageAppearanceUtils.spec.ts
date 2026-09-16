@@ -1,9 +1,12 @@
 import {
+  canSendComposerMessage,
+  getBubbleSurface,
   getMessageOrientation,
   getMessageVariant,
   isBotSender,
   isOwnMessage,
 } from '../messageAppearanceUtils';
+import { chatTokens } from '@/theme';
 import {
   CONTENT_TYPES,
   MESSAGE_STATUS,
@@ -174,5 +177,94 @@ describe('message variant', () => {
     expect(isBotSender(SENDER_TYPES.CAPTAIN_ASSISTANT)).toBe(true);
     expect(isBotSender(SENDER_TYPES.USER)).toBe(false);
     expect(isBotSender(undefined)).toBe(false);
+  });
+});
+
+describe('bubble surface', () => {
+  it("tints the agent's own message and leaves the contact's neutral", () => {
+    const own = getBubbleSurface(MESSAGE_VARIANTS.AGENT, true);
+    const other = getBubbleSurface(MESSAGE_VARIANTS.USER, false);
+
+    expect(own.surface).toBe(chatTokens.chat.surfaceOwn);
+    expect(other.surface).toContain(chatTokens.chat.surfaceOther);
+    expect(own.surface).not.toBe(other.surface);
+  });
+
+  it('gives the neutral incoming bubble a hairline so it reads on the chat ground', () => {
+    expect(getBubbleSurface(MESSAGE_VARIANTS.USER, false).surface).toContain(
+      chatTokens.chat.bubbleBorder,
+    );
+  });
+
+  it('still separates the two sides inside an email inbox', () => {
+    // Both directions carry the EMAIL variant, so only orientation can tell them
+    // apart - without it a mail thread would render as one flat colour.
+    const own = getBubbleSurface(MESSAGE_VARIANTS.EMAIL, true);
+    const other = getBubbleSurface(MESSAGE_VARIANTS.EMAIL, false);
+
+    expect(own.surface).toBe(chatTokens.chat.surfaceOwn);
+    expect(other.surface).toContain(chatTokens.chat.surfaceOther);
+    expect(own.surface).not.toBe(other.surface);
+  });
+
+  it('keeps a private note amber on whichever side it sits', () => {
+    expect(getBubbleSurface(MESSAGE_VARIANTS.PRIVATE, true).surface).toBe(
+      chatTokens.chat.surfacePrivate,
+    );
+    expect(getBubbleSurface(MESSAGE_VARIANTS.PRIVATE, false).surface).toBe(
+      chatTokens.chat.surfacePrivate,
+    );
+    // And it never borrows either conversational surface.
+    expect(getBubbleSurface(MESSAGE_VARIANTS.PRIVATE, true).surface).not.toBe(
+      chatTokens.chat.surfaceOwn,
+    );
+  });
+
+  it('keeps a failed message on the error surface with reversed text', () => {
+    const failed = getBubbleSurface(MESSAGE_VARIANTS.ERROR, true);
+    expect(failed.surface).toBe(chatTokens.chat.surfaceError);
+    expect(failed.footerText).toBe(chatTokens.chat.surfaceErrorText);
+  });
+
+  it('marks an unsupported message with its dashed outline', () => {
+    expect(getBubbleSurface(MESSAGE_VARIANTS.UNSUPPORTED, false).surface).toBe(
+      chatTokens.chat.surfaceUnsupported,
+    );
+  });
+
+  it('never returns a white footer colour on a light surface', () => {
+    // Guards the invisible-text trap: only the dark error bubble may use white.
+    const lightSurfaces = [
+      getBubbleSurface(MESSAGE_VARIANTS.AGENT, true),
+      getBubbleSurface(MESSAGE_VARIANTS.USER, false),
+      getBubbleSurface(MESSAGE_VARIANTS.EMAIL, true),
+      getBubbleSurface(MESSAGE_VARIANTS.EMAIL, false),
+      getBubbleSurface(MESSAGE_VARIANTS.PRIVATE, false),
+      getBubbleSurface(MESSAGE_VARIANTS.UNSUPPORTED, false),
+    ];
+    lightSurfaces.forEach(({ footerText }) => expect(footerText).not.toContain('text-white'));
+  });
+});
+
+describe('composer send affordance', () => {
+  it('enables send once real text is typed', () => {
+    expect(canSendComposerMessage({ content: 'Hello' })).toBe(true);
+  });
+
+  it('stays disabled for an empty composer', () => {
+    expect(canSendComposerMessage({ content: '' })).toBe(false);
+  });
+
+  it('stays disabled for whitespace alone', () => {
+    expect(canSendComposerMessage({ content: '   \n\t ' })).toBe(false);
+  });
+
+  it('enables send for an attachment with no caption', () => {
+    expect(canSendComposerMessage({ content: '', attachmentCount: 1 })).toBe(true);
+    expect(canSendComposerMessage({ content: '  ', attachmentCount: 2 })).toBe(true);
+  });
+
+  it('treats a missing attachment count as none', () => {
+    expect(canSendComposerMessage({ content: ' ' })).toBe(false);
   });
 });

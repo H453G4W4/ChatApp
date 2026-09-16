@@ -274,7 +274,12 @@
       }
     },
     "YOU_PREFIX": "You: ",
-    "NEW_CONVERSATION": "New conversation"
+    "NEW_CONVERSATION": "New conversation",
+    "EMPTY_TITLE": "No conversations yet",
+    "ERROR_TITLE": "Could not load conversations",
+    "ERROR_BODY": "Check your connection and try again.",
+    "RETRY": "Try again",
+    "REPLYING_TO": "Replying to %{name}"
   },
   "FILTER": {
     "ALL_INBOXES": "All inboxes",
