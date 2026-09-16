@@ -32,14 +32,18 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     android: {
       adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#ffffff' },
-      package: 'com.chatwoot.app',
+      // ChatApp ships under its own application id; the Firebase Android client
+      // in google-services.json is registered against this exact value.
+      package: process.env.EXPO_PUBLIC_ANDROID_PACKAGE || 'com.chatapp.app',
       permissions: [
         'android.permission.CAMERA',
         'android.permission.RECORD_AUDIO',
         'android.permission.POST_NOTIFICATIONS',
       ],
-      // Please use the relative path to the google-services.json file
-      googleServicesFile: process.env.EXPO_PUBLIC_ANDROID_GOOGLE_SERVICES_FILE,
+      // Relative path to the google-services.json file. Falls back to the copy in
+      // the repo root so a local build works without extra environment setup.
+      googleServicesFile:
+        process.env.EXPO_PUBLIC_ANDROID_GOOGLE_SERVICES_FILE || './google-services.json',
       intentFilters: [
         {
           action: 'VIEW',
@@ -117,6 +121,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ],
       './with-ffmpeg-pod.js',
       './with-android-notification-channel.js',
+      './with-android-native-clean-fix.js',
       './with-notifee-maven-repo.js',
       './with-ios-modular-headers.js',
     ],
