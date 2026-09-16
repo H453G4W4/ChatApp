@@ -1,13 +1,19 @@
 import { createSlice, createEntityAdapter } from '@reduxjs/toolkit';
 import { Conversation } from '@/types/Conversation';
 import { conversationActions } from './conversationActions';
-import { findPendingMessageIndex } from '@/utils/conversationUtils';
+import {
+  compareMessageActivity,
+  findPendingMessageIndex,
+  getLastMessage,
+  getNewestMessage,
+} from '@/utils/conversationUtils';
 
 import { MESSAGE_TYPES } from '@/constants';
 import { Message } from '@/types/Message';
 import { PendingMessage } from './conversationTypes';
 
 export interface ConversationState {
+  activeConversationsRequestId?: string | null;
   meta: {
     mineCount: number;
     unassignedCount: number;
@@ -97,7 +103,10 @@ const preserveLocalStatus = (
     };
   }
 
-  if (!shouldPreserveLocalStatus(existingConversation, incomingConversation)) {
+  if (
+    !existingConversation ||
+    !shouldPreserveLocalStatus(existingConversation, incomingConversation)
+  ) {
     return {
       ...incomingConversation,
       localStatusUpdatedAt: existingConversation?.localStatusUpdatedAt,
@@ -114,11 +123,114 @@ const preserveLocalStatus = (
   };
 };
 
+const preserveRecentActivity = (
+  existing: Conversation | undefined,
+  incoming: Conversation,
+): Conversation => {
+  const conversation = preserveLocalStatus(existing, incoming);
+  if (!existing) return conversation;
+  if (incoming.agentLastSeenAt < existing.agentLastSeenAt) {
+    conversation.agentLastSeenAt = existing.agentLastSeenAt;
+    conversation.unreadCount = existing.unreadCount;
+  }
+
+  const existingMessage = getLastMessage(existing);
+  const incomingMessage = getLastMessage(incoming);
+  const hasOlderActivity = incoming.lastActivityAt < existing.lastActivityAt;
+  const hasOlderPreview =
+    incoming.lastActivityAt === existing.lastActivityAt &&
+    existingMessage &&
+    (!incomingMessage || compareMessageActivity(existingMessage, incomingMessage) > 0);
+
+  if (!hasOlderActivity && !hasOlderPreview) return conversation;
+
+  // A list/page request may finish after a newer socket message. Keep the newer
+  // summary and loaded history, while still accepting other server attributes.
+  return {
+    ...conversation,
+    lastActivityAt: existing.lastActivityAt,
+    timestamp: existing.timestamp,
+    lastNonActivityMessage: existing.lastNonActivityMessage,
+    messages: existing.messages,
+    unreadCount:
+      incoming.agentLastSeenAt > existing.agentLastSeenAt
+        ? incoming.unreadCount
+        : existing.unreadCount,
+  };
+};
+
+const mergeMessage = (
+  conversation: Conversation,
+  message: PendingMessage | Message,
+  isCreation = false,
+): void => {
+  const previousMessages = conversation.messages ?? [];
+  const latestMessage = getNewestMessage([
+    ...previousMessages,
+    ...(conversation.lastNonActivityMessage ? [conversation.lastNonActivityMessage] : []),
+  ]);
+  conversation.messages = previousMessages;
+  const messageIndex = findPendingMessageIndex(conversation, message);
+  const isDuplicate = messageIndex !== -1 && previousMessages[messageIndex].id === message.id;
+  const isOlderMessage =
+    message.createdAt < conversation.lastActivityAt ||
+    (latestMessage && compareMessageActivity(message as Message, latestMessage) < 0);
+
+  if (messageIndex === -1) {
+    conversation.messages.push(message as Message);
+  } else {
+    conversation.messages[messageIndex] = {
+      ...conversation.messages[messageIndex],
+      ...message,
+    } as Message;
+  }
+
+  const lastMessage = getLastMessage(conversation);
+  if (
+    message.messageType !== MESSAGE_TYPES.ACTIVITY &&
+    (!lastMessage || compareMessageActivity(message as Message, lastMessage) >= 0)
+  ) {
+    conversation.lastNonActivityMessage = message as Message;
+  }
+
+  if (isOlderMessage || (isCreation && isDuplicate)) return;
+
+  if (message.messageType === MESSAGE_TYPES.INCOMING) conversation.canReply = true;
+  const summary = (message as Message).conversation;
+  const lastActivityAt = summary?.lastActivityAt ?? message.createdAt;
+  conversation.lastActivityAt = Math.max(conversation.lastActivityAt, lastActivityAt);
+  conversation.timestamp = Math.max(conversation.timestamp ?? 0, message.createdAt);
+  if (message.createdAt <= conversation.agentLastSeenAt) return;
+
+  if (typeof summary?.unreadCount === 'number') {
+    conversation.unreadCount = summary.unreadCount;
+  } else if (isCreation && !isDuplicate && message.messageType === MESSAGE_TYPES.INCOMING) {
+    conversation.unreadCount += 1;
+  }
+};
+
+// Queue order is derived, never stored: raising lastActivityAt here is what
+// moves a conversation to the top of getFilteredConversations on the next render.
+const receiveCreatedMessage = (
+  state: ReturnType<typeof conversationAdapter.getInitialState<ConversationState>>,
+  message: Message,
+) => {
+  const conversation = state.entities[message.conversationId];
+  if (!conversation) return;
+  mergeMessage(conversation, message, true);
+};
+
 const conversationSlice = createSlice({
   name: 'conversation',
   initialState,
   reducers: {
-    clearAllConversations: conversationAdapter.removeAll,
+    clearAllConversations: state => {
+      conversationAdapter.removeAll(state);
+      state.activeConversationsRequestId = null;
+      state.isLoadingConversations = false;
+      state.isAllConversationsFetched = false;
+      state.error = null;
+    },
     addConversation: (state, action) => {
       const conversation = action.payload;
       conversationAdapter.addOne(state, conversation);
@@ -132,7 +244,7 @@ const conversationSlice = createSlice({
           return;
         }
 
-        const { messages, ...conversationAttributes } = preserveLocalStatus(
+        const { messages, ...conversationAttributes } = preserveRecentActivity(
           existingConversation,
           conversation,
         );
@@ -158,21 +270,25 @@ const conversationSlice = createSlice({
       if (!conversation) {
         return;
       }
-      // If the message type is incoming, set the can reply to true
-      if (message.messageType === MESSAGE_TYPES.INCOMING) {
-        conversation.canReply = true;
+      mergeMessage(conversation, message);
+    },
+    receiveMessageCreated: (state, action) => {
+      receiveCreatedMessage(state, action.payload as Message);
+    },
+    hydrateConversationMessages: (state, action) => {
+      const { conversation, messages } = action.payload as {
+        conversation: Conversation;
+        messages: Message[];
+      };
+      // Another list request or event may already have supplied newer data.
+      const isNew = !state.entities[conversation.id];
+      if (isNew) {
+        const hydrated = { ...conversation, messages: [...(conversation.messages ?? [])] };
+        messages.forEach(message => mergeMessage(hydrated, message, true));
+        conversationAdapter.addOne(state, hydrated);
+      } else {
+        messages.forEach(message => receiveCreatedMessage(state, message));
       }
-      // Check message is already present in the conversation
-      const pendingMessageIndex = findPendingMessageIndex(conversation, message);
-      if (pendingMessageIndex !== -1) {
-        conversation.messages[pendingMessageIndex] = message as Message;
-      }
-      // If the message is not present in the conversation, add it
-      else {
-        conversation.messages.push(message as Message);
-      }
-      conversation.timestamp = message.createdAt;
-      conversation.unreadCount = (message as Message).conversation?.unreadCount || 0;
     },
     updateConversationLastActivity: (state, action) => {
       const { conversationId, lastActivityAt } = action.payload;
@@ -180,32 +296,48 @@ const conversationSlice = createSlice({
       if (!conversation) {
         return;
       }
-      conversation.lastActivityAt = lastActivityAt;
+      if (typeof lastActivityAt === 'number') {
+        conversation.lastActivityAt = Math.max(conversation.lastActivityAt, lastActivityAt);
+      }
     },
   },
   extraReducers: builder => {
     builder
-      .addCase(conversationActions.fetchConversations.pending, state => {
+      .addCase(conversationActions.fetchConversations.pending, (state, action) => {
+        state.activeConversationsRequestId = action.meta.requestId;
         state.error = null;
         state.isLoadingConversations = true;
       })
-      .addCase(conversationActions.fetchConversations.fulfilled, (state, { payload }) => {
-        const { conversations, meta } = payload;
-        const conversationsToUpsert = conversations.filter(
-          conversation =>
-            !isOutdatedConversationUpdate(state.entities[conversation.id], conversation),
-        );
-        conversationAdapter.upsertMany(
-          state,
-          conversationsToUpsert.map(conversation =>
-            preserveLocalStatus(state.entities[conversation.id], conversation),
-          ),
-        );
-        state.isLoadingConversations = false;
-        state.isAllConversationsFetched = conversations.length < 20 || false;
-        state.meta = meta;
-      })
-      .addCase(conversationActions.fetchConversations.rejected, (state, { error }) => {
+      .addCase(
+        conversationActions.fetchConversations.fulfilled,
+        (state, { payload, meta: requestMeta }) => {
+          if (
+            state.activeConversationsRequestId !== undefined &&
+            state.activeConversationsRequestId !== requestMeta.requestId
+          )
+            return;
+          const { conversations, meta } = payload;
+          const conversationsToUpsert = conversations.filter(
+            conversation =>
+              !isOutdatedConversationUpdate(state.entities[conversation.id], conversation),
+          );
+          conversationAdapter.upsertMany(
+            state,
+            conversationsToUpsert.map(conversation =>
+              preserveRecentActivity(state.entities[conversation.id], conversation),
+            ),
+          );
+          state.isLoadingConversations = false;
+          state.isAllConversationsFetched = conversations.length < 20 || false;
+          state.meta = meta;
+        },
+      )
+      .addCase(conversationActions.fetchConversations.rejected, (state, action) => {
+        if (
+          state.activeConversationsRequestId !== undefined &&
+          state.activeConversationsRequestId !== action.meta.requestId
+        )
+          return;
         state.isLoadingConversations = false;
       })
       .addCase(conversationActions.fetchConversation.pending, state => {
@@ -221,7 +353,7 @@ const conversationSlice = createSlice({
 
         conversationAdapter.upsertOne(
           state,
-          preserveLocalStatus(state.entities[conversation.id], conversation),
+          preserveRecentActivity(state.entities[conversation.id], conversation),
         );
         state.isConversationFetching = false;
         state.isAllMessagesFetched = false;
@@ -365,6 +497,8 @@ export const {
   updateConversationLastActivity,
   addOrUpdateMessage,
   addConversation,
+  receiveMessageCreated,
+  hydrateConversationMessages,
 } = conversationSlice.actions;
 
 export default conversationSlice.reducer;

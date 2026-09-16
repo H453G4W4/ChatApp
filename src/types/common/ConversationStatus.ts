@@ -2,7 +2,11 @@ export type ConversationStatus = 'open' | 'resolved' | 'pending' | 'snoozed' | '
 
 export type AllStatusTypes = ConversationStatus | 'all';
 
-export type SortTypes = 'latest' | 'sort_on_created_at' | 'sort_on_priority';
+export type SortTypes =
+  | 'last_activity_at_desc'
+  | 'latest'
+  | 'sort_on_created_at'
+  | 'sort_on_priority';
 
 export type AssigneeTypes = 'me' | 'unassigned' | 'all';
 
@@ -23,6 +27,7 @@ export const StatusOptions: Record<AllStatusTypes, string> = {
 };
 
 export const SortOptions: Record<SortTypes, string> = {
+  last_activity_at_desc: 'Latest',
   latest: 'Latest',
   sort_on_created_at: 'Created At',
   sort_on_priority: 'Priority',

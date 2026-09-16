@@ -68,6 +68,7 @@ export type MessageContentAttributes = {
 };
 
 export interface Message {
+  accountId?: number;
   id: number;
   attachments: ImageMetadata[];
   content: string;
@@ -83,7 +84,8 @@ export interface Message {
   sourceId: string | null;
   status: MessageStatus;
   lastNonActivityMessage: Message | null;
-  conversation?: Conversation | null;
+  // message.created carries summary fields, not a complete conversation.
+  conversation?: (Partial<Conversation> & { assigneeId?: number | null }) | null;
   shouldRenderAvatar?: boolean | false;
   senderId: number;
   groupWithNext?: boolean | false;

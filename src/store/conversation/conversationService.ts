@@ -32,6 +32,9 @@ import type {
   TranslateMessagePayload,
   TranslateMessageAPIResponse,
   RetryMessagePayload,
+  CreateConversationPayload,
+  CreateConversationAPIResponse,
+  CreateConversationResponse,
 } from './conversationTypes';
 
 import {
@@ -44,14 +47,14 @@ import type { AxiosRequestConfig } from 'axios';
 
 export class ConversationService {
   static async getConversations(payload: ConversationPayload): Promise<ConversationListResponse> {
-    const { status, assigneeType, page, sortBy, inboxId = 0 } = payload;
+    const { status, page, inboxId = 0 } = payload;
 
     const params = {
       inbox_id: inboxId || null,
-      assignee_type: assigneeType,
+      assignee_type: 'all',
       status: status,
       page: page,
-      sort_by: sortBy,
+      sort_by: 'last_activity_at_desc',
     };
     const response = await apiService.get<ConversationListAPIResponse>('conversations', {
       params,
@@ -64,6 +67,39 @@ export class ConversationService {
       meta: transformConversationListMeta(meta),
     };
     return transformedResponse;
+  }
+
+  /**
+   * `POST conversations` (Chatwoot application API), verified against v4.17.1.
+   *
+   * The controller's `before_action :inbox, :contact, :contact_inbox` authorizes
+   * the inbox (`InboxPolicy#show?` - the agent's assigned inboxes), then
+   * `ContactInboxBuilder` finds-or-creates the ContactInbox, `ConversationBuilder`
+   * creates the conversation, and `Messages::MessageBuilder` creates the first
+   * message. That builder defaults `message_type` to `outgoing`, and because we
+   * send no message `source_id`, `Base::SendOnChannelService#invalid_message?`
+   * stays false - so `SendReplyJob` reaches `Email::SendOnEmailService` and the
+   * mail is actually dispatched.
+   *
+   * `source_id` may be omitted for an email inbox (the builder derives it from
+   * `contact.email`); we pass the normalized address, which matches because
+   * Chatwoot downcases `contact.email` on save.
+   */
+  static async createConversation(
+    payload: CreateConversationPayload,
+  ): Promise<CreateConversationResponse> {
+    const { inboxId, contactId, sourceId, subject, content } = payload;
+    const response = await apiService.post<CreateConversationAPIResponse>('conversations', {
+      inbox_id: inboxId,
+      contact_id: contactId,
+      source_id: sourceId,
+      ...(subject ? { additional_attributes: { mail_subject: subject } } : {}),
+      message: { content },
+    });
+    // The response is a full conversation; this flow only needs its identifiers,
+    // and `id` is the display_id the show endpoint and the store are both keyed on.
+    const { id, inbox_id: createdInboxId } = response.data ?? {};
+    return { conversationId: id, inboxId: createdInboxId };
   }
 
   static async fetchConversation(conversationId: number): Promise<ConversationResponse> {

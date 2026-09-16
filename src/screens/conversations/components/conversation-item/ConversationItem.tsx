@@ -61,7 +61,6 @@ export type ConversationItemProps = {
 
 export const ConversationItem = memo(
   ({
-    id,
     senderName,
     senderThumbnail,
     isSelected,
@@ -69,23 +68,15 @@ export const ConversationItem = memo(
     unreadCount,
     isTyping,
     availabilityStatus,
-    priority = null,
-    labels,
     timestamp,
     inbox,
     lastMessage,
-    inboxId,
-    assignee,
-    slaPolicyId = null,
-    appliedSla = null,
-    appliedSlaConversationDetails = {},
     additionalAttributes,
-    allLabels,
     typingText,
   }: ConversationItemProps) => {
     return (
-      <NativeView style={tailwind.style('px-3 gap-3 flex-row justify-between')}>
-        <NativeView style={tailwind.style('py-3 flex flex-row')}>
+      <NativeView style={tailwind.style('px-3 gap-3 flex-row items-center')}>
+        <NativeView style={tailwind.style('py-2.5 flex-row items-center')}>
           <ConversationSelect {...{ isSelected, currentState }} />
           <ConversationAvatar
             src={{ uri: senderThumbnail } as ImageURISource}
@@ -96,22 +87,12 @@ export const ConversationItem = memo(
 
         <ConversationItemDetail
           {...{
-            id,
-            priority: priority,
             unreadCount,
-            labels,
-            assignee,
             senderName,
             timestamp,
             inbox,
             lastMessage,
-            inboxId,
-            appliedSla,
-            appliedSlaConversationDetails,
             additionalAttributes,
-            slaPolicyId,
-            currentState,
-            allLabels,
             typingText,
           }}
         />

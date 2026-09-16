@@ -65,15 +65,14 @@ const StatusComponent = React.memo(() => {
 export const ConversationItemContainer = memo((props: ConversationItemContainerProps) => {
   const { conversationItem, index, openedRowIndex } = props;
   const {
-    meta: {
-      sender: { name: senderName, thumbnail: senderThumbnail, id: contactId },
-      assignee,
-    },
+    // The queue never hides a conversation because its metadata is incomplete,
+    // so sender/assignee are read defensively rather than destructured blindly.
+    meta,
     id,
     priority,
     unreadCount,
     labels,
-    timestamp,
+    lastActivityAt,
     inboxId,
     lastNonActivityMessage,
     slaPolicyId,
@@ -83,6 +82,14 @@ export const ConversationItemContainer = memo((props: ConversationItemContainerP
     status,
     additionalAttributes,
   } = conversationItem;
+
+  const {
+    name: senderName,
+    thumbnail: senderThumbnail,
+    id: contactId,
+    email: senderEmail,
+  } = meta?.sender ?? {};
+  const assignee = meta?.assignee;
 
   // Hooks
   const navigation = useNavigation();
@@ -137,7 +144,14 @@ export const ConversationItemContainer = memo((props: ConversationItemContainerP
 
   const viewProps = {
     id,
-    senderName: contactName || senderName,
+    // Name, then the address (email threads often have no name yet), then a
+    // neutral label - a row is never blank and never hidden.
+    senderName:
+      contactName ||
+      senderName ||
+      contact?.email ||
+      senderEmail ||
+      i18n.t('CONVERSATION.UNKNOWN_SENDER'),
     senderThumbnail: contactThumbnail || senderThumbnail,
     isSelected,
     currentState,
@@ -146,7 +160,7 @@ export const ConversationItemContainer = memo((props: ConversationItemContainerP
     availabilityStatus: availabilityStatus || 'offline',
     priority,
     labels,
-    timestamp,
+    timestamp: lastActivityAt,
     inbox: inbox || null,
     lastNonActivityMessage,
     lastMessage,

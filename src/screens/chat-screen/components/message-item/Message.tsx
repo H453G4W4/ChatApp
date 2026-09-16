@@ -34,9 +34,10 @@ import {
 } from '@/constants';
 import i18n from '@/i18n';
 import Clipboard from '@react-native-clipboard/clipboard';
-import { CopyIcon, Trash, ReplyIcon, TranslateIcon} from '@/svg-icons';
+import { CopyIcon, Trash, ReplyIcon, TranslateIcon } from '@/svg-icons';
 import { setQuoteMessage } from '@/store/conversation/sendMessageSlice';
 import { inboxSupportsReplyTo, isAWhatsAppChannel } from '@/utils';
+import { getMessageOrientation, getMessageVariant } from '@/utils/messageAppearanceUtils';
 import { MenuOption, MessageMenu } from '../message-menu';
 import { tailwind } from '@/theme';
 import { Dimensions, View, Text } from 'react-native';
@@ -45,10 +46,6 @@ import { useTargetMessageAnimation } from './useTargetMessageAnimation';
 import { useMessageEntrance } from './useMessageEntrance';
 
 // import { ImageMetadata } from '@/types';
-
-const BOT_SENDER_TYPES: string[] = [SENDER_TYPES.AGENT_BOT, SENDER_TYPES.CAPTAIN_ASSISTANT];
-
-const isBotSender = (senderType?: string) => !!senderType && BOT_SENDER_TYPES.includes(senderType);
 
 // Captain assistants are serialized with `avatarUrl`, the other sender types with `thumbnail`.
 const senderAvatarSource = (sender: Message['sender']) => {
@@ -243,16 +240,7 @@ export const MessageComponent = (props: MessageComponentProps) => {
   const dispatch = useAppDispatch();
   const { conversationId } = useChatWindowContext();
   const { item, currentUserId, isEmailInbox, isTargetMessage = false } = props;
-  const {
-    messageType,
-    contentType,
-    status,
-    sender,
-    groupWithNext,
-    groupWithPrevious,
-    senderId,
-    senderType,
-  } = item;
+  const { messageType, contentType, status, sender, groupWithNext, groupWithPrevious } = item;
 
   const hapticSelection = useHaptic();
   const conversation = useAppSelector(state => selectConversationById(state, conversationId));
@@ -260,34 +248,7 @@ export const MessageComponent = (props: MessageComponentProps) => {
   const { inboxId } = conversation || {};
   const inbox = useAppSelector(state => (inboxId ? selectInboxById(state, inboxId) : undefined));
 
-  const variant = () => {
-    if (item.private) return MESSAGE_VARIANTS.PRIVATE;
-    if (isEmailInbox) {
-      const emailInboxTypes = [MESSAGE_TYPES.INCOMING, MESSAGE_TYPES.OUTGOING];
-      if (emailInboxTypes.includes(messageType)) {
-        return MESSAGE_VARIANTS.EMAIL;
-      }
-    }
-    if (contentType === CONTENT_TYPES.INCOMING_EMAIL) {
-      return MESSAGE_VARIANTS.EMAIL;
-    }
-    if (status === MESSAGE_STATUS.FAILED) return MESSAGE_VARIANTS.ERROR;
-    if (item.contentAttributes?.isUnsupported) return MESSAGE_VARIANTS.UNSUPPORTED;
-
-    const isBot = !sender || isBotSender(sender.type);
-    if (isBot && messageType === MESSAGE_TYPES.OUTGOING) {
-      return MESSAGE_VARIANTS.BOT;
-    }
-
-    const variants = {
-      [MESSAGE_TYPES.INCOMING]: MESSAGE_VARIANTS.USER,
-      [MESSAGE_TYPES.ACTIVITY]: MESSAGE_VARIANTS.ACTIVITY,
-      [MESSAGE_TYPES.OUTGOING]: MESSAGE_VARIANTS.AGENT,
-      [MESSAGE_TYPES.TEMPLATE]: MESSAGE_VARIANTS.TEMPLATE,
-    };
-
-    return variants[messageType] || MESSAGE_VARIANTS.USER;
-  };
+  const variant = () => getMessageVariant(item, isEmailInbox);
 
   const handleCopyMessage = (content: string) => {
     hapticSelection?.();
@@ -304,7 +265,7 @@ export const MessageComponent = (props: MessageComponentProps) => {
 
   const handleQuoteReply = (message: Message) => {
     dispatch(setQuoteMessage(message));
-  }
+  };
 
   // Mirrors the condition the reply box uses to decide between reply and note mode, so the retry
   // button is offered exactly where a public reply could still be composed.
@@ -333,7 +294,13 @@ export const MessageComponent = (props: MessageComponentProps) => {
   };
 
   const getMenuOptions = (message: Message): MenuOption[] => {
-    const { messageType, content, attachments, private: isPrivate, status: messageStatus } = message;
+    const {
+      messageType,
+      content,
+      attachments,
+      private: isPrivate,
+      status: messageStatus,
+    } = message;
     const hasText = !!content;
     const hasAttachments = !!(attachments && attachments.length > 0);
     const isDeleted = message.contentAttributes?.deleted;
@@ -392,31 +359,7 @@ export const MessageComponent = (props: MessageComponentProps) => {
     return true;
   };
 
-  const isMyMessage = () => {
-    if (status === MESSAGE_STATUS.PROGRESS && messageType === MESSAGE_TYPES.OUTGOING) {
-      return true;
-    }
-
-    const senderIdentifier = senderId ?? sender?.id;
-    const senderTypeValue = senderType ?? sender?.type;
-
-    if (!senderTypeValue || !senderIdentifier) {
-      return false;
-    }
-
-    return (
-      senderTypeValue.toLowerCase() === SENDER_TYPES.USER.toLowerCase() &&
-      currentUserId === senderIdentifier
-    );
-  };
-
-  const orientation = () => {
-    if (isMyMessage()) {
-      return ORIENTATION.RIGHT;
-    }
-    if (messageType === MESSAGE_TYPES.ACTIVITY) return ORIENTATION.CENTER;
-    return ORIENTATION.LEFT;
-  };
+  const orientation = () => getMessageOrientation(item, currentUserId);
 
   const shouldGroupWithNext = () => {
     if (status === MESSAGE_STATUS.FAILED) return false;

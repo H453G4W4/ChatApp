@@ -4,24 +4,14 @@ import { selectAllInboxes } from '@/store/inbox/inboxSelectors';
 import { BottomSheetType, setBottomSheetState } from '@/store/conversation/conversationHeaderSlice';
 import { selectFilters } from '@/store/conversation/conversationFilterSlice';
 import { BaseFilterOption, FilterBar } from '@/components-next';
-import { AssigneeOptions, StatusOptions, SortOptions } from '@/types/common/ConversationStatus';
+import { StatusOptions } from '@/types/common/ConversationStatus';
 import i18n from '@/i18n';
 
 export const ConversationFilterOptions: BaseFilterOption[] = [
   {
-    type: 'assignee_type',
-    options: AssigneeOptions,
-    defaultFilter: 'All',
-  },
-  {
     type: 'status',
     options: StatusOptions,
     defaultFilter: 'Open',
-  },
-  {
-    type: 'sort_by',
-    options: SortOptions,
-    defaultFilter: 'Latest',
   },
 ];
 

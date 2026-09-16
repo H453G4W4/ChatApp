@@ -28,6 +28,7 @@ import cannedResponseSlice from '@/store/canned-response/cannedResponseSlice';
 import macroSlice from '@/store/macro/macroSlice';
 import searchSlice from '@/store/search/searchSlice';
 import copilotSlice from '@/store/copilot/copilotSlice';
+import newConversationSlice from '@/store/new-conversation/newConversationSlice';
 
 export const appReducer = combineReducers({
   auth: authSlice,
@@ -57,4 +58,5 @@ export const appReducer = combineReducers({
   localRecordedAudioCache: localRecordedAudioCacheSlice,
   search: searchSlice,
   copilot: copilotSlice,
+  newConversation: newConversationSlice,
 });

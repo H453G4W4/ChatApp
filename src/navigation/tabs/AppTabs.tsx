@@ -25,6 +25,8 @@ import ChatScreen from '@/screens/chat-screen/ChatScreen';
 import ContactDetailsScreen from '@/screens/contact-details/ContactDetailsScreen';
 import DashboardScreen from '@/screens/dashboard/DashboardScreen';
 import SearchScreen from '@/screens/search/SearchScreen';
+import NewChatScreen from '@/screens/new-conversation/NewChatScreen';
+import NewEmailScreen from '@/screens/new-conversation/NewEmailScreen';
 
 import { selectInstallationUrl } from '@/store/settings/settingsSelectors';
 import { BottomTabBar } from './BottomTabBar';
@@ -70,6 +72,8 @@ export type TabBarExcludedScreenParamList = {
   ImageScreen: undefined;
   ConversationDetails: undefined;
   ConversationAction: undefined;
+  NewChatScreen: undefined;
+  NewEmailScreen: undefined;
 };
 const Stack = createNativeStackNavigator<TabBarExcludedScreenParamList>();
 
@@ -224,6 +228,16 @@ export const AppTabs = () => {
           options={{ headerShown: false, animation: 'slide_from_right' }}
           name="SearchScreen"
           component={SearchScreen}
+        />
+        <Stack.Screen
+          options={{ headerShown: false, animation: 'slide_from_bottom' }}
+          name="NewChatScreen"
+          component={NewChatScreen}
+        />
+        <Stack.Screen
+          options={{ headerShown: false, animation: 'slide_from_right' }}
+          name="NewEmailScreen"
+          component={NewEmailScreen}
         />
       </Stack.Navigator>
     );

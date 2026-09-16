@@ -22,15 +22,16 @@ export const shouldApplyFilters = (conversation: Conversation, filters: FilterSt
   return shouldFilter;
 };
 
-const getLastNonActivityMessage = (
-  messageInStore: Message | null,
-  messageFromAPI: Message | null,
-): Message | null => {
-  if (messageInStore && messageFromAPI) {
-    return messageInStore.createdAt >= messageFromAPI.createdAt ? messageInStore : messageFromAPI;
-  }
-  return messageInStore || messageFromAPI;
-};
+export const compareMessageActivity = (first: Message, second: Message): number =>
+  first.createdAt - second.createdAt ||
+  (typeof first.id === 'number' && typeof second.id === 'number' ? first.id - second.id : 0);
+
+export const getNewestMessage = (messages: Message[]): Message | null =>
+  messages.reduce<Message | null>(
+    (latest, message) =>
+      !latest || compareMessageActivity(message, latest) >= 0 ? message : latest,
+    null,
+  );
 
 export const filterDuplicateSourceMessages = (messages: Message[] = []): Message[] => {
   const messagesWithoutDuplicates: Message[] = [];
@@ -51,15 +52,13 @@ export const getLastMessage = (conversation: Conversation): Message | null => {
   // transformConversation normalises this, so the fallback only covers
   // conversations built outside that path.
   const messages = conversation.messages ?? [];
-  const lastMessageIncludingActivity = messages[messages.length - 1];
   const nonActivityMessages = messages.filter(message => message.messageType !== 2);
-  const lastNonActivityMessageInStore = nonActivityMessages[nonActivityMessages.length - 1];
-  const lastNonActivityMessageFromAPI = conversation.lastNonActivityMessage;
-
-  if (!lastNonActivityMessageInStore && !lastNonActivityMessageFromAPI) {
-    return lastMessageIncludingActivity ?? null;
+  if (conversation.lastNonActivityMessage) {
+    nonActivityMessages.push(conversation.lastNonActivityMessage);
   }
-  return getLastNonActivityMessage(lastNonActivityMessageInStore, lastNonActivityMessageFromAPI);
+
+  // Search windows and pagination can store messages in either direction.
+  return getNewestMessage(nonActivityMessages) ?? getNewestMessage(messages);
 };
 
 export const getReadMessages = (messages: Message[], agentLastSeenAt: number): Message[] => {

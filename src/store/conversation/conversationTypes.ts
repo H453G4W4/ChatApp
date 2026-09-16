@@ -260,3 +260,37 @@ export interface TranslateMessagePayload {
 export interface TranslateMessageAPIResponse {
   content: string;
 }
+
+export interface CreateConversationPayload {
+  inboxId: number;
+  contactId: number;
+  /** Chatwoot's conversation source id; the contact's address for email inboxes. */
+  sourceId: string;
+  /** Stored as `additional_attributes.mail_subject`, the email thread subject. */
+  subject?: string;
+  content: string;
+}
+
+/**
+ * `POST conversations` response.
+ *
+ * Verified against Chatwoot v4.17.1: `conversations/create.json.jbuilder` renders
+ * the same `api/v1/conversations/partials/_conversation` partial as `show`, so a
+ * successful create returns a complete conversation, not just identifiers.
+ *
+ * `id` is the conversation's **display_id** (the partial does `json.id
+ * conversation.display_id`), which is also what `GET conversations/:id` looks up
+ * via `find_by!(display_id:)`. Only the fields this flow reads are typed here.
+ */
+export interface CreateConversationAPIResponse {
+  id: number;
+  account_id?: number;
+  inbox_id?: number;
+  status?: string;
+  additional_attributes?: { mail_subject?: string } & Record<string, unknown>;
+}
+
+export interface CreateConversationResponse {
+  conversationId: number;
+  inboxId?: number;
+}

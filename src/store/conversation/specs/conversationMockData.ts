@@ -26,6 +26,7 @@ export const conversation: Conversation = {
   lastNonActivityMessage: null,
   meta: {
     sender: {
+      type: 'contact',
       id: 1,
       name: 'Test Sender',
       thumbnail: '',
@@ -51,6 +52,7 @@ export const conversation: Conversation = {
   timestamp: 1,
   slaPolicyId: null,
   appliedSla: null,
+  slaEvents: [],
 };
 
 export const conversationListResponse: ConversationListAPIResponse = {

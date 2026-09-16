@@ -1,188 +1,93 @@
-/* eslint-disable react/display-name */
-import React, { memo, useState } from 'react';
-import { Dimensions, ImageURISource, Text } from 'react-native';
+import React, { memo } from 'react';
+import { Text } from 'react-native';
 import { LinearTransition } from 'react-native-reanimated';
-import { isEqual } from 'lodash';
 
-import { Avatar } from '@/components-next/common';
 import { AnimatedNativeView, NativeView } from '@/components-next/native-components';
-import { tailwind } from '@/theme';
-import { Agent, Conversation, ConversationAdditionalAttributes, Label, Message } from '@/types';
-
-import { ConversationId } from './ConversationId';
-import { ConversationLastMessage } from './ConversationLastMessage';
-import { PriorityIndicator, ChannelIndicator } from '@/components-next/list-components';
-import { UnreadIndicator } from './UnreadIndicator';
-import { SLAIndicator } from './SLAIndicator';
-import { LabelIndicator } from './LabelIndicator';
-import { LastActivityTime } from './LastActivityTime';
-import { SLA } from '@/types/common/SLA';
+import { chatTokens, tailwind } from '@/theme';
+import { ConversationAdditionalAttributes, Message } from '@/types';
 import { Inbox } from '@/types/Inbox';
+import { ChannelIndicator } from '@/components-next/list-components/ChannelIndicator';
+
+import { ConversationLastMessage } from './ConversationLastMessage';
+import { UnreadIndicator } from './UnreadIndicator';
+import { LastActivityTime } from './LastActivityTime';
 import { TypingMessage } from './TypingMessage';
+import i18n from '@/i18n';
 
-const { width } = Dimensions.get('screen');
-
-type ConversationDetailSubCellProps = Pick<
-  Conversation,
-  'id' | 'priority' | 'labels' | 'unreadCount' | 'inboxId' | 'slaPolicyId'
-> & {
+type ConversationItemDetailProps = {
+  unreadCount: number;
   senderName: string | null;
-  assignee: Agent | null;
   timestamp: number;
   lastMessage?: Message | null;
   inbox: Inbox | null;
-  appliedSla: SLA | null;
-  appliedSlaConversationDetails?:
-    | {
-        firstReplyCreatedAt: number;
-        waitingSince: number;
-        status: string;
-      }
-    | Record<string, never>;
   additionalAttributes?: ConversationAdditionalAttributes;
-  allLabels: Label[];
   typingText?: string;
 };
 
-const checkIfPropsAreSame = (
-  prev: ConversationDetailSubCellProps,
-  next: ConversationDetailSubCellProps,
-) => {
-  const arePropsEqual = isEqual(prev, next);
-  return arePropsEqual;
-};
-
-export const ConversationItemDetail = memo((props: ConversationDetailSubCellProps) => {
-  const {
-    id: conversationId,
-    priority,
-    unreadCount,
-    labels,
-    assignee,
-    senderName,
-    timestamp,
-    slaPolicyId,
-    lastMessage,
-    inbox,
-    appliedSla,
-    appliedSlaConversationDetails,
-    additionalAttributes,
-    allLabels,
-    typingText,
-  } = props;
-
-  const [shouldShowSLA, setShouldShowSLA] = useState(true);
-
-  const hasPriority = priority !== null;
-
-  const hasLabels = labels.length > 0;
-
-  // A conversation can carry a policy id without the applied SLA record being
-  // serialised, so the record itself gates the indicator.
-  const hasSLA = !!slaPolicyId && !!appliedSla && shouldShowSLA;
-
-  if (!lastMessage) {
-    return null;
-  }
+/**
+ * Two-line WhatsApp-style row body.
+ *
+ *   name  [channel]            time
+ *   You: last message         (3)
+ *
+ * The channel indicator rides next to the name as a single small glyph so the
+ * inbox stays identifiable without adding a third line of metadata.
+ */
+export const ConversationItemDetail = memo(function ConversationItemDetail({
+  unreadCount,
+  senderName,
+  timestamp,
+  lastMessage,
+  inbox,
+  additionalAttributes,
+  typingText,
+}: ConversationItemDetailProps) {
+  const isUnread = unreadCount > 0;
 
   return (
     <AnimatedNativeView
       layout={LinearTransition.springify().mass(1).damping(21).stiffness(115)}
-      style={tailwind.style('flex-1 gap-1 py-3 border-b-[1px] border-b-blackA-A3')}>
-      <AnimatedNativeView
-        style={tailwind.style('flex flex-row justify-between items-center h-[24px]')}>
-        <AnimatedNativeView style={tailwind.style('flex flex-row items-center h-[24px] gap-[5px]')}>
+      style={tailwind.style(
+        'flex-1 min-w-0 flex-row items-center gap-2 py-2.5',
+        chatTokens.screen.divider,
+      )}>
+      <NativeView style={tailwind.style('flex-1 min-w-0 gap-0.5')}>
+        <NativeView style={tailwind.style('flex-row items-center gap-1')}>
           <Text
             numberOfLines={1}
             style={tailwind.style(
-              'text-base font-inter-medium-24 tracking-[0.24px] text-gray-950 capitalize',
-              // Calculated based on the widths of other content,
-              // We might have to do a 10-20px offset based on the max width of the timestamp
-              `max-w-[${width - 250}px]`,
+              chatTokens.list.name,
+              'flex-shrink',
+              isUnread && chatTokens.list.nameUnread,
             )}>
             {senderName}
           </Text>
-          <ConversationId id={conversationId} />
-        </AnimatedNativeView>
-        <AnimatedNativeView style={tailwind.style('flex flex-row items-center gap-2')}>
-          {hasPriority ? <PriorityIndicator {...{ priority }} /> : null}
           {inbox && <ChannelIndicator inbox={inbox} additionalAttributes={additionalAttributes} />}
-          <LastActivityTime timestamp={timestamp} />
-        </AnimatedNativeView>
-      </AnimatedNativeView>
-      {hasLabels || hasSLA ? (
-        <AnimatedNativeView style={tailwind.style('flex flex-col items-center gap-1')}>
-          <AnimatedNativeView
-            style={tailwind.style('flex flex-row w-full justify-between items-center gap-2')}>
-            {typingText ? (
-              <TypingMessage typingText={typingText} />
-            ) : (
-              <ConversationLastMessage numberOfLines={1} lastMessage={lastMessage as Message} />
-            )}
+        </NativeView>
 
-            {unreadCount >= 1 && (
-              <NativeView style={tailwind.style('flex-shrink-0')}>
-                <UnreadIndicator count={unreadCount} />
-              </NativeView>
-            )}
-          </AnimatedNativeView>
-          <AnimatedNativeView
-            style={tailwind.style('flex flex-row h-6 justify-between items-center gap-2')}>
-            <AnimatedNativeView style={tailwind.style('flex flex-row flex-1 gap-2 items-center')}>
-              {hasSLA && appliedSla && (
-                <SLAIndicator
-                  slaPolicyId={slaPolicyId}
-                  appliedSla={appliedSla}
-                  appliedSlaConversationDetails={
-                    appliedSlaConversationDetails as {
-                      firstReplyCreatedAt: number;
-                      waitingSince: number;
-                      status: string;
-                    }
-                  }
-                  onSLAStatusChange={setShouldShowSLA}
-                />
-              )}
-              {hasLabels && hasSLA && (
-                <NativeView style={tailwind.style('w-[1px] h-3 bg-slate-500')} />
-              )}
-              {hasLabels && <LabelIndicator labels={labels} allLabels={allLabels} />}
-            </AnimatedNativeView>
-
-            {assignee ? (
-              <AnimatedNativeView>
-                <Avatar
-                  size="sm"
-                  name={assignee.name as string}
-                  src={{ uri: assignee.thumbnail } as ImageURISource}
-                />
-              </AnimatedNativeView>
-            ) : null}
-          </AnimatedNativeView>
-        </AnimatedNativeView>
-      ) : (
-        <AnimatedNativeView style={tailwind.style('flex flex-row items-end gap-2')}>
+        <NativeView style={tailwind.style('flex-row items-center min-h-[20px]')}>
           {typingText ? (
             <TypingMessage typingText={typingText} />
+          ) : lastMessage ? (
+            <ConversationLastMessage numberOfLines={1} lastMessage={lastMessage} />
           ) : (
-            <ConversationLastMessage numberOfLines={2} lastMessage={lastMessage as Message} />
+            <Text numberOfLines={1} style={tailwind.style(chatTokens.list.preview, 'flex-1')}>
+              {i18n.t('CONVERSATION.NO_CONTENT')}
+            </Text>
           )}
+        </NativeView>
+      </NativeView>
 
-          <AnimatedNativeView style={tailwind.style('flex flex-row items-end gap-1')}>
-            {assignee ? (
-              <NativeView style={tailwind.style(unreadCount >= 1 ? 'pr-1' : '')}>
-                <Avatar
-                  size="sm"
-                  name={assignee.name as string}
-                  src={{ uri: assignee.thumbnail } as ImageURISource}
-                />
-              </NativeView>
-            ) : null}
-
-            {unreadCount >= 1 && <UnreadIndicator count={unreadCount} />}
-          </AnimatedNativeView>
-        </AnimatedNativeView>
-      )}
+      <NativeView style={tailwind.style(chatTokens.list.meta)}>
+        <LastActivityTime timestamp={timestamp} isUnread={isUnread} />
+        {isUnread ? (
+          <UnreadIndicator count={unreadCount} />
+        ) : (
+          // Reserves the badge's height so rows keep one uniform height whether
+          // or not they are unread, which keeps the reorder animation smooth.
+          <NativeView style={tailwind.style('h-5')} />
+        )}
+      </NativeView>
     </AnimatedNativeView>
   );
-}, checkIfPropsAreSame);
+});

@@ -4,7 +4,8 @@
     "ERROR": "Error",
     "ERROR_TITLE": "Unexpected error occurred",
     "REPORT_MESSAGE": "We have reported this to our team ! Please close the app and start again!",
-    "CLOSE": "Close"
+    "CLOSE": "Close",
+    "BACK": "Back"
   },
   "FOOTER": {
     "HOME": "Home",
@@ -74,7 +75,7 @@
   },
   "CONVERSATION": {
     "HEADER": {
-      "TITLE": "Conversations",
+      "TITLE": "ChatApp",
       "CLEAR_FILTER": "Clear"
     },
     "FILTERS": {
@@ -184,6 +185,7 @@
     "STORY_NOT_AVAILABLE": "This story is no longer available",
     "DELETE_MESSAGE_SUCCESS": "Message deleted successfully",
     "NO_CONTENT": "No content available",
+    "UNKNOWN_SENDER": "Unknown contact",
     "ASSIGN_CHANGE": "Conversation Assignee changed",
     "TEAM_CHANGE": "Conversation Team changed",
     "STATUS_CHANGE": "Conversation Status changed",
@@ -270,9 +272,10 @@
         "EMPTY": "No priority added",
         "EDIT": "Edit"
       }
-    }
+    },
+    "YOU_PREFIX": "You: ",
+    "NEW_CONVERSATION": "New conversation"
   },
-
   "FILTER": {
     "ALL_INBOXES": "All inboxes",
     "FILTER_BY_ASSIGNEE_TYPE": "Filter by assignee type",
@@ -570,5 +573,41 @@
     "TONE_CONFIDENT": "Confident",
     "GENERATION_FAILED": "Failed to generate content. Please try again.",
     "FOLLOW_UP_FAILED": "Failed to send follow-up. Please try again."
+  },
+  "NEW_CHAT": {
+    "TITLE": "New chat",
+    "SUBTITLE": "Start a conversation",
+    "EMAIL": "New email",
+    "EMAIL_DESCRIPTION": "Send an email to any address",
+    "NO_EMAIL_INBOX": "No email inbox is available on your account."
+  },
+  "NEW_EMAIL": {
+    "TITLE": "New email",
+    "FROM": "From",
+    "TO": "To",
+    "TO_PLACEHOLDER": "name@example.com",
+    "CONTACT_NAME": "Contact name",
+    "CONTACT_NAME_PLACEHOLDER": "Optional",
+    "CONTACT_NAME_HINT": "This address is new, so a contact will be created.",
+    "SUBJECT": "Subject",
+    "SUBJECT_PLACEHOLDER": "Subject",
+    "MESSAGE": "Message",
+    "MESSAGE_PLACEHOLDER": "Write your message",
+    "SEND": "Send",
+    "SENDING": "Sending…",
+    "SELECT_INBOX": "Select an email inbox",
+    "EXISTING_CONTACT": "Existing contact",
+    "SEARCHING": "Searching…",
+    "NO_CONTACTS": "No matching contacts. You can still send to this address.",
+    "ERRORS": {
+      "INBOX_REQUIRED": "Choose an email inbox to send from.",
+      "INBOX_NOT_ALLOWED": "That inbox is not available for sending email.",
+      "EMAIL_REQUIRED": "Enter a recipient email address.",
+      "EMAIL_INVALID": "Enter a valid email address.",
+      "SUBJECT_REQUIRED": "Enter a subject for the new email.",
+      "CONTENT_REQUIRED": "Enter a message.",
+      "NO_CONVERSATION_ID": "The server did not return a conversation. Nothing was sent.",
+      "SEND_FAILED": "Could not send the email. Please try again."
+    }
   }
 }

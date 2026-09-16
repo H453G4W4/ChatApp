@@ -2,9 +2,7 @@ import { createDraftSafeSelector, createSelector } from '@reduxjs/toolkit';
 import type { RootState } from '@/store';
 import { conversationAdapter } from './conversationSlice';
 import { FilterState } from '@/store/conversation/conversationFilterSlice';
-import { CONVERSATION_PRIORITY_ORDER } from '@/constants';
 import { shouldApplyFilters } from '@/utils/conversationUtils';
-import type { Conversation } from '@/types';
 import { MESSAGE_TYPES } from '@/constants';
 
 export const selectConversationsState = (state: RootState) => state.conversations;
@@ -50,71 +48,26 @@ export const selectIsLoadingMessages = createSelector(
   state => state.isLoadingMessages,
 );
 
+/**
+ * The single global queue.
+ *
+ * Every conversation the authenticated agent's Chatwoot account returns is
+ * shown. The backend already scopes its responses to the inboxes this agent may
+ * access, so assignment is metadata here and local inbox records are never used
+ * as a permission gate - doing so would hide valid rows whenever inbox metadata
+ * has not finished loading. The only filters left are the explicit status and
+ * inbox choices the agent makes in the UI.
+ */
 export const getFilteredConversations = createDraftSafeSelector(
-  [
-    selectAllConversations,
-    (_, filters: FilterState) => filters,
-    (_, __, userId: number | undefined) => userId,
-  ],
-  (conversations, filters, userId) => {
-    const { assignee_type: assigneeType, sort_by: sortBy } = filters;
-    let sortType = filters.sort_by; // Create mutable variable
-
-    type SortComparator = {
-      latest: (a: Conversation, b: Conversation) => number;
-      sort_on_created_at: (a: Conversation, b: Conversation) => number;
-      sort_on_priority: (a: Conversation, b: Conversation) => number;
-    };
-
-    const comparator: SortComparator = {
-      latest: (a, b) => b.lastActivityAt - a.lastActivityAt,
-      sort_on_created_at: (a, b) => a.createdAt - b.createdAt,
-      sort_on_priority: (a, b) => {
-        const priorityA = a.priority || 'low';
-        const priorityB = b.priority || 'low';
-        return CONVERSATION_PRIORITY_ORDER[priorityA] - CONVERSATION_PRIORITY_ORDER[priorityB];
-      },
-    };
-
-    // Type guard to ensure sortBy is a valid key of comparator
-    const isValidSortBy = (sort: string): sort is keyof SortComparator => {
-      return sort in comparator;
-    };
-
-    if (!isValidSortBy(sortBy)) {
-      // Default to 'latest' if invalid sortBy
-      sortType = 'latest';
-    }
-
-    // Ids can outlive their record, so entries without one are dropped before
-    // sorting. The copy keeps the sort off the memoized input array.
-    const sortedConversations = [...conversations]
-      .filter(Boolean)
-      .sort(comparator[sortType as keyof SortComparator]);
-
-    if (assigneeType === 'me') {
-      return sortedConversations.filter(conversation => {
-        const assignee = conversation.meta?.assignee;
-
-        const shouldFilter = shouldApplyFilters(conversation, filters);
-        const isAssignedToMe = assignee && assignee.id === userId;
-        const isChatMine = isAssignedToMe && shouldFilter;
-        return isChatMine;
-      });
-    }
-    if (assigneeType === 'unassigned') {
-      return sortedConversations.filter(conversation => {
-        const isUnAssigned = !conversation.meta?.assignee;
-        const shouldFilter = shouldApplyFilters(conversation, filters);
-        return isUnAssigned && shouldFilter;
-      });
-    }
-
-    return sortedConversations.filter(conversation => {
-      const shouldFilter = shouldApplyFilters(conversation, filters);
-      return shouldFilter;
-    });
-  },
+  [selectAllConversations, (_: RootState, filters: FilterState) => filters],
+  (conversations, filters) =>
+    // filter() copies first, so the sort never touches the memoized input array.
+    // Ids can outlive their record, so entries without one are dropped.
+    conversations
+      .filter(conversation => conversation && shouldApplyFilters(conversation, filters))
+      // Latest activity first; id DESC keeps equal timestamps deterministic.
+      // Priority is deliberately not part of the ordering.
+      .sort((a, b) => b.lastActivityAt - a.lastActivityAt || b.id - a.id),
 );
 
 export const getMessagesByConversationId = createDraftSafeSelector(
@@ -145,11 +98,11 @@ export const getLastEmailInSelectedChat = createDraftSafeSelector(
       return [];
     }
     const lastEmail = [...conversation.messages].reverse().find(message => {
-      const { contentAttributes = {}, messageType } = message;
-      const { email = {} } = contentAttributes || {};
+      const { contentAttributes, messageType } = message;
+      const email = contentAttributes?.email;
       const isIncomingOrOutgoing =
         messageType === MESSAGE_TYPES.OUTGOING || messageType === MESSAGE_TYPES.INCOMING;
-      if (email.from && isIncomingOrOutgoing) {
+      if (email?.from && isIncomingOrOutgoing) {
         return true;
       }
       return false;

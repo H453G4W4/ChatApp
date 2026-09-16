@@ -10,7 +10,6 @@ import { useConversationListStateContext } from '@/context';
 import { tailwind } from '@/theme';
 import { useHaptic } from '@/utils';
 import { getFilteredConversations } from '@/store/conversation/conversationSelectors';
-import { selectUserId } from '@/store/auth/authSelectors';
 import {
   resetFilters,
   selectFilters,
@@ -46,14 +45,11 @@ export const ConversationHeader = () => {
 
   const filters = useAppSelector(selectFilters);
   const dispatch = useAppDispatch();
-  const userId = useAppSelector(selectUserId);
   const navigation = useNavigation();
 
   const { openedRowIndex } = useConversationListStateContext();
 
-  const allConversations = useAppSelector(state =>
-    getFilteredConversations(state, filters, userId),
-  );
+  const allConversations = useAppSelector(state => getFilteredConversations(state, filters));
 
   const selectedConversations = useAppSelector(selectSelectedConversations);
 

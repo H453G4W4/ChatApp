@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, RefreshControl, StatusBar } from 'react-native';
 import Animated, { LinearTransition, SharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,9 +8,8 @@ import {
   ConversationItemContainer,
   ConversationHeader,
   StatusFilters,
-  SortByFilters,
   InboxFilters,
-  AssigneeTypeFilters,
+  NewConversationFab,
 } from './components';
 
 import { ActionTabs } from '@/components-next';
@@ -41,7 +40,8 @@ import {
 import { selectFilters, FilterState } from '@/store/conversation/conversationFilterSlice';
 import { ConversationPayload } from '@/store/conversation/conversationTypes';
 import { clearAllConversations } from '@/store/conversation/conversationSlice';
-import { selectUserId, selectCurrentUserAccountId } from '@/store/auth/authSelectors';
+import { selectCurrentUserAccountId } from '@/store/auth/authSelectors';
+import { inboxActions } from '@/store/inbox/inboxActions';
 import { clearAllContacts } from '@/store/contact/contactSlice';
 import { clearAssignableAgents } from '@/store/assignable-agent/assignableAgentSlice';
 
@@ -58,7 +58,6 @@ const AnimatedFlashList = Animated.createAnimatedComponent(FlashList);
 
 type FlashListRenderItemType = {
   item: Conversation;
-  index: number;
 };
 
 const ConversationList = () => {
@@ -72,7 +71,8 @@ const ConversationList = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   // This is used for pagination
   const [pageNumber, setPageNumber] = useState(1);
-  const userId = useAppSelector(selectUserId);
+  const queueGeneration = useRef(0);
+  const isPageRequestInFlight = useRef(false);
   const accountId = useAppSelector(selectCurrentUserAccountId);
 
   // This is used to store the index of the item that is currently selected
@@ -83,16 +83,16 @@ const ConversationList = () => {
   // This is used to check if all the conversations are fetched
   const isAllConversationsFetched = useAppSelector(selectIsAllConversationsFetched);
 
-  const handleRender = useCallback(({ item, index }: FlashListRenderItemType) => {
-    return (
+  const handleRender = useCallback(
+    ({ item }: FlashListRenderItemType) => (
       <ConversationItemContainer
-        index={index}
+        index={item.id}
         conversationItem={item}
         openedRowIndex={openedRowIndex as SharedValue<number | null>}
       />
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    ),
+    [openedRowIndex],
+  );
 
   const filters = useAppSelector(selectFilters);
 
@@ -109,11 +109,13 @@ const ConversationList = () => {
   }, [accountId, filters]);
 
   const clearAndFetchConversations = useCallback(async (filters: FilterState) => {
+    queueGeneration.current += 1;
+    isPageRequestInFlight.current = false;
     setPageNumber(1);
     await dispatch(clearAllConversations());
     await dispatch(clearAllContacts());
     await dispatch(clearAssignableAgents());
-    fetchConversations(filters);
+    await fetchConversations(filters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -130,21 +132,26 @@ const ConversationList = () => {
   const handleRefresh = useCallback(() => {
     setFlashListReady(false);
     setIsRefreshing(true);
+    // Inbox records only decorate the rows with a name and channel icon, so they
+    // refresh alongside the queue instead of gating it.
+    dispatch(inboxActions.fetchInboxes());
     clearAndFetchConversations(filters).finally(() => {
       setIsRefreshing(false);
     });
-  }, [clearAndFetchConversations, filters]);
+  }, [dispatch, clearAndFetchConversations, filters]);
 
   const checkAppStateAndFetchConversations = useCallback(async () => {
+    const generation = queueGeneration.current;
     const lastActiveTimestamp = await AsyncStorage.getItem(LAST_ACTIVE_TIMESTAMP_KEY);
     if (lastActiveTimestamp) {
       const currentTimestamp = Date.now();
       const difference = currentTimestamp - parseInt(lastActiveTimestamp);
-      if (difference > LAST_ACTIVE_TIMESTAMP_THRESHOLD) {
-        clearAndFetchConversations(filters);
+      if (difference > LAST_ACTIVE_TIMESTAMP_THRESHOLD && generation === queueGeneration.current) {
+        dispatch(inboxActions.fetchInboxes());
+        await clearAndFetchConversations(filters);
       }
     }
-  }, [clearAndFetchConversations, filters]);
+  }, [dispatch, clearAndFetchConversations, filters]);
 
   // Update conversations when app comes to foreground from background
   useEffect(() => {
@@ -173,22 +180,30 @@ const ConversationList = () => {
     async (filters: FilterState, page: number = 1) => {
       const conversationFilters = {
         status: filters.status,
-        assigneeType: filters.assignee_type,
+        assigneeType: 'all',
         page: page,
-        sortBy: filters.sort_by,
+        sortBy: 'last_activity_at_desc',
         inboxId: parseInt(filters.inbox_id),
       } as ConversationPayload;
 
-      dispatch(conversationActions.fetchConversations(conversationFilters));
+      return dispatch(conversationActions.fetchConversations(conversationFilters));
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
-  const onChangePageNumber = () => {
+  const onChangePageNumber = async () => {
+    if (isPageRequestInFlight.current) return;
+    isPageRequestInFlight.current = true;
+    const generation = queueGeneration.current;
     const nextPageNumber = pageNumber + 1;
-    setPageNumber(nextPageNumber);
-    fetchConversations(filters, nextPageNumber);
+    const result = await fetchConversations(filters, nextPageNumber);
+    if (generation === queueGeneration.current) {
+      isPageRequestInFlight.current = false;
+      if (conversationActions.fetchConversations.fulfilled.match(result)) {
+        setPageNumber(nextPageNumber);
+      }
+    }
   };
 
   const handleOnEndReached = () => {
@@ -206,9 +221,7 @@ const ConversationList = () => {
     }
   }, [isFlashListReady, openedRowIndex]);
 
-  const allConversations = useAppSelector(state =>
-    getFilteredConversations(state, filters, userId),
-  );
+  const allConversations = useAppSelector(state => getFilteredConversations(state, filters));
 
   const shouldShowEmptyLoader = isConversationsLoading && allConversations.length === 0;
 
@@ -234,6 +247,8 @@ const ConversationList = () => {
       refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
       showsVerticalScrollIndicator={false}
       data={allConversations}
+      keyExtractor={item => String((item as Conversation).id)}
+      maintainVisibleContentPosition={{ disabled: true }}
       onScrollBeginDrag={handleScrollBeginDrag}
       onEndReached={handleOnEndReached}
       onEndReachedThreshold={0.5}
@@ -267,10 +282,6 @@ const ConversationScreen = () => {
     switch (currentBottomSheet) {
       case 'status':
         return 290;
-      case 'sort_by':
-        return 200;
-      case 'assignee_type':
-        return 200;
       default:
         return 250;
     }
@@ -290,6 +301,7 @@ const ConversationScreen = () => {
           layout={LinearTransition.springify().damping(22).stiffness(180)}>
           <ConversationList />
         </Animated.View>
+        <NewConversationFab />
         <Sheet
           ref={filtersModalSheetRef}
           height={isInbox ? undefined : filterHeight}
@@ -299,11 +311,7 @@ const ConversationScreen = () => {
           {isInbox ? (
             <InboxFilters />
           ) : (
-            <>
-              {currentBottomSheet === 'status' ? <StatusFilters /> : null}
-              {currentBottomSheet === 'sort_by' ? <SortByFilters /> : null}
-              {currentBottomSheet === 'assignee_type' ? <AssigneeTypeFilters /> : null}
-            </>
+            <>{currentBottomSheet === 'status' ? <StatusFilters /> : null}</>
           )}
         </Sheet>
         <ActionBottomSheet />
